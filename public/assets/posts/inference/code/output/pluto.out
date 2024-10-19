@@ -1,0 +1,440 @@
+~~~
+<!-- PlutoStaticHTML.Begin -->
+<!--
+    # This information is used for caching.
+    [PlutoStaticHTML.State]
+    input_sha = "1129329ff46f36327dc688dc5eb3201b0a02323b2ee6cbc6ab8b4efa2d1f1723"
+    julia_version = "1.10.5"
+-->
+
+<div class="markdown"><blockquote><p>I'm lately doing for the first time some optimizations of Julia code and I sort of find it super beautiful.</p></blockquote><p>This is how I started a message on the Julia language Slack in response to a question about why optimising Julia code is so difficult compared to other languages. In the message I argued against that claim. Optimising isn't hard in Julia if you compare it to Python or R where you have to be an expert in Python or R <strong>and</strong> C/C++. Also, in that message I went through a high-level overview of how I approached optimising. The next day, Frames Catherine White, who is a true Julia veteran, suggested that I write a blog post about my overview, so here we are.</p><p>In this blog post, I'll describe what <em>type stability</em> is and why it is important for performance. Unlike most other posts, I'll discuss it in the context of performance (raw throughput) and in the context of time to first X (TTFX). Julia is sort of notorious for having really bad TTFX in certain cases. For example, creating a plot with the <a href="https://github.com/JuliaPlots/Makie.jl">Makie.jl</a> package takes 40 seconds at the time of writing. On the second call, it takes about 0.001 seconds. This blog post explains the workflow that you can use to reduce running time and TTFX.</p><h2>Type stability</h2><p>Let's first talk about that <em>type stability</em> thing that everyone keeps talking about. Why is it important? To show this, let's write naive Julia code. Specifically, for this example, we write code which can hide the type from the compiler, that is, we need to add some kind of indirection so that the compiler cannot infer the types. This can be done via a dictionary. Note that our dictionary returns different types, namely an <code>Float32</code> and a <code>Float64</code>:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>numbers = Dict(:one =&gt; 1f0, :two =&gt; 2.0);</code></pre>
+
+
+<pre class='language-julia'><code class='language-julia'>function double(mapping, key::Symbol)
+    return 2 * mapping[key]
+end;</code></pre>
+
+
+
+<div class="markdown"><p>This code works, we can pass <code>:one</code> or <code>:two</code> and the number will be doubled:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>double(numbers, :one)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash458071">2.0f0</pre>
+
+<pre class='language-julia'><code class='language-julia'>double(numbers, :two)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash234834">4.0</pre>
+
+
+<div class="markdown"><p>Let's look at the optimized LLVM code via <code>@code_warntype</code>. Here, you can ignore the <code>with_terminal</code>; it's only needed because this blog post is running in a <a href="https://github.com/fonsp/Pluto.jl">Pluto.jl</a> notebook.</p></div>
+
+<pre class='language-julia'><code class='language-julia'>using PlutoUI: with_terminal</code></pre>
+
+
+<pre class='language-julia'><code class='language-julia'>with_terminal() do
+    @code_warntype double(numbers, :one)
+end</code></pre>
+<pre id="plutouiterminal">MethodInstance for Main.var\"workspace#7\".double(::Dict{Symbol, AbstractFloat}, ::Symbol)
+  from double(�[90mmapping�[39m, �[90mkey�[39m::�[1mSymbol�[22m)�[90m @�[39m �[90mMain.var\"workspace#7\"�[39m �[90m/builds/rikh/blog/posts/notebooks/�[39m�[90m�[4minference.jl#==#a36ef63b-436d-45e2-8edf-625df1575e7a:1�[24m�[39m
+Arguments
+  #self#�[36m::Core.Const(Main.var\"workspace#7\".double)�[39m
+  mapping�[36m::Dict{Symbol, AbstractFloat}�[39m
+  key�[36m::Symbol�[39m
+Body�[91m�[1m::Any�[22m�[39m
+�[90m1 ─�[39m %1 = Base.getindex(mapping, key)�[91m�[1m::AbstractFloat�[22m�[39m
+�[90m│  �[39m %2 = (2 * %1)�[91m�[1m::Any�[22m�[39m
+�[90m└──�[39m      return %2
+</pre>
+
+
+<div class="markdown"><p>Ouch. The optimized code looks quite good with one <code>Base.getindex</code> and a <code>2 * %1</code>, but we do get some big red warnings about the output type which is an <code>Any</code>. That color indicates that something is wrong. What is wrong is that an <code>Any</code> type cannot easily be put into a memory spot. For a concrete type such as <code>Float64</code>, we know how much space we need so we don't need a pointer and we can even put the number nearer to the CPU so that it can quickly be accessed. To see whether a type is concrete, we can use <code>isconcretetype</code>:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>isconcretetype(Float64)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash105656">true</pre>
+
+<pre class='language-julia'><code class='language-julia'>isconcretetype(AbstractFloat)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash179202">false</pre>
+
+
+<div class="markdown"><p>To make matters worse, Julia does a lot of optimizing, but it cannot do much for abstract types. For example, let's write two very simple functions:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>function use_double(mapping, x)
+    doubled = 2 * double(mapping, x)
+    string(doubled)
+end;</code></pre>
+
+
+<pre class='language-julia'><code class='language-julia'>use_double(numbers, :one)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash814895">"4.0"</pre>
+
+
+<div class="markdown"><p>This is how the <code>@code_warntype</code> looks:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>with_terminal() do
+    @code_warntype use_double(numbers, :one)
+end</code></pre>
+<pre id="plutouiterminal">MethodInstance for Main.var\"workspace#7\".use_double(::Dict{Symbol, AbstractFloat}, ::Symbol)
+  from use_double(�[90mmapping�[39m, �[90mx�[39m)�[90m @�[39m �[90mMain.var\"workspace#7\"�[39m �[90m/builds/rikh/blog/posts/notebooks/�[39m�[90m�[4minference.jl#==#da60c86b-ed10-4475-988c-099d5929946e:1�[24m�[39m
+Arguments
+  #self#�[36m::Core.Const(Main.var\"workspace#7\".use_double)�[39m
+  mapping�[36m::Dict{Symbol, AbstractFloat}�[39m
+  x�[36m::Symbol�[39m
+Locals
+  doubled�[91m�[1m::Any�[22m�[39m
+Body�[91m�[1m::Any�[22m�[39m
+�[90m1 ─�[39m %1 = Main.var\"workspace#7\".double(mapping, x)�[91m�[1m::Any�[22m�[39m
+�[90m│  �[39m      (doubled = 2 * %1)
+�[90m│  �[39m %3 = Main.var\"workspace#7\".string(doubled)�[91m�[1m::Any�[22m�[39m
+�[90m└──�[39m      return %3
+</pre>
+
+
+<div class="markdown"><p>The <code>Any</code> type propagated. Now, also the <code>use_naive_double</code> function has an <code>Any</code> output type. <strong>And</strong>, the type of the variable <code>doubled</code> isn't known when the function is compiled meaning that the call <code>string(doubled)</code> ends up being a <em>runtime dispatch</em>. This means that Julia has to lookup the right method during running time in the method lookup table. If the type was known, Julia would just hardcode the link to the right method and thus avoid a method table lookup or it would just copy-paste the content of the function to avoid jumping at all. This is called inlining.</p><p>To see that in action, let's go on a little digression and take a look at optimised code for the case when the types <strong>are</strong> known. For this, consider two simple functions:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>inner(x) = 2 * x;</code></pre>
+
+
+<pre class='language-julia'><code class='language-julia'>outer(x) = 3 * inner(x);</code></pre>
+
+
+
+<div class="markdown"><p>We can now call this for, say an <code>Int</code> and get an output:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>outer(2)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash119582">12</pre>
+
+
+<div class="markdown"><p>Let's look at the LLVM code for this function:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>with_terminal() do
+    @code_llvm outer(2)
+end</code></pre>
+<pre id="plutouiterminal">�[90m;  @ /builds/rikh/blog/posts/notebooks/inference.jl#==#879d0d78-0c25-45d6-92be-9350b85def96:1 within `outer`�[39m
+�[95mdefine�[39m �[36mi64�[39m �[93m@julia_outer_2132�[39m�[33m(�[39m�[36mi64�[39m �[95msignext�[39m �[0m%0�[33m)�[39m �[0m#0 �[33m{�[39m
+�[91mtop:�[39m
+�[90m; ┌ @ int.jl:88 within `*`�[39m
+   �[0m%1 �[0m= �[96m�[1mmul�[22m�[39m �[36mi64�[39m �[0m%0�[0m, �[33m6�[39m
+   �[96m�[1mret�[22m�[39m �[36mi64�[39m �[0m%1
+�[90m; └�[39m
+�[33m}�[39m
+</pre>
+
+
+<div class="markdown"><p>Hopefully, you're now thinking "WOW!". The compiler figured out that <code>inner</code> is just <code>2 * x</code> so there is no need to step into that function, we can just calculate <code>2 * x</code> directly. But then, it figures out that <code>2 * 3 * x = 6 * x</code>, so we can get the answer in <strong>one</strong> LLVM instruction.</p><p>On the other hand, what if we add a <code>Base.inferencebarrier</code> to block inference inside the outer function:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>blocked_outer(x) = 3 * inner(Base.inferencebarrier(x));</code></pre>
+
+
+<pre class='language-julia'><code class='language-julia'>with_terminal() do
+    @code_llvm blocked_outer(2)
+end</code></pre>
+<pre id="plutouiterminal">�[90m;  @ /builds/rikh/blog/posts/notebooks/inference.jl#==#e02d6f85-22da-4262-9dad-3911c2222280:1 within `blocked_outer`�[39m
+�[95mdefine�[39m �[95mnonnull�[39m �[33m{�[39m�[33m}�[39m�[0m* �[93m@julia_blocked_outer_2170�[39m�[33m(�[39m�[36mi64�[39m �[95msignext�[39m �[0m%0�[33m)�[39m �[0m#0 �[33m{�[39m
+�[91mtop:�[39m
+  �[0m%1 �[0m= �[96m�[1malloca�[22m�[39m �[33m[�[39m�[33m2�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m, �[95malign�[39m �[33m8�[39m
+  �[0m%gcframe2 �[0m= �[96m�[1malloca�[22m�[39m �[33m[�[39m�[33m3�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m, �[95malign�[39m �[33m16�[39m
+  �[0m%gcframe2.sub �[0m= �[96m�[1mgetelementptr�[22m�[39m �[95minbounds�[39m �[33m[�[39m�[33m3�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m, �[33m[�[39m�[33m3�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m* �[0m%gcframe2�[0m, �[36mi64�[39m �[33m0�[39m�[0m, �[36mi64�[39m �[33m0�[39m
+  �[0m%.sub �[0m= �[96m�[1mgetelementptr�[22m�[39m �[95minbounds�[39m �[33m[�[39m�[33m2�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m, �[33m[�[39m�[33m2�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m* �[0m%1�[0m, �[36mi64�[39m �[33m0�[39m�[0m, �[36mi64�[39m �[33m0�[39m
+  �[0m%2 �[0m= �[96m�[1mbitcast�[22m�[39m �[33m[�[39m�[33m3�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m* �[0m%gcframe2 �[95mto�[39m �[36mi8�[39m�[0m*
+  �[96m�[1mcall�[22m�[39m �[36mvoid�[39m �[93m@llvm.memset.p0i8.i64�[39m�[33m(�[39m�[36mi8�[39m�[0m* �[95malign�[39m �[33m16�[39m �[0m%2�[0m, �[36mi8�[39m �[33m0�[39m�[0m, �[36mi64�[39m �[33m24�[39m�[0m, �[36mi1�[39m �[95mtrue�[39m�[33m)�[39m
+  �[0m%thread_ptr �[0m= �[95mcall�[39m �[36mi8�[39m�[0m* �[95masm�[39m �[0m\"movq %fs:0, $0\"�[0m, �[0m\"=r\"�[33m(�[39m�[33m)�[39m �[0m#6
+  �[0m%tls_ppgcstack �[0m= �[96m�[1mgetelementptr�[22m�[39m �[36mi8�[39m�[0m, �[36mi8�[39m�[0m* �[0m%thread_ptr�[0m, �[36mi64�[39m �[33m-8�[39m
+  �[0m%3 �[0m= �[96m�[1mbitcast�[22m�[39m �[36mi8�[39m�[0m* �[0m%tls_ppgcstack �[95mto�[39m �[33m{�[39m�[33m}�[39m�[0m****
+  �[0m%tls_pgcstack �[0m= �[96m�[1mload�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m***�[0m, �[33m{�[39m�[33m}�[39m�[0m**** �[0m%3�[0m, �[95malign�[39m �[33m8�[39m
+  �[0m%4 �[0m= �[96m�[1mbitcast�[22m�[39m �[33m[�[39m�[33m3�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m* �[0m%gcframe2 �[95mto�[39m �[36mi64�[39m�[0m*
+  �[96m�[1mstore�[22m�[39m �[36mi64�[39m �[33m4�[39m�[0m, �[36mi64�[39m�[0m* �[0m%4�[0m, �[95malign�[39m �[33m16�[39m
+  �[0m%5 �[0m= �[96m�[1mgetelementptr�[22m�[39m �[95minbounds�[39m �[33m[�[39m�[33m3�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m, �[33m[�[39m�[33m3�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m* �[0m%gcframe2�[0m, �[36mi64�[39m �[33m0�[39m�[0m, �[36mi64�[39m �[33m1�[39m
+  �[0m%6 �[0m= �[96m�[1mbitcast�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m** �[0m%5 �[95mto�[39m �[33m{�[39m�[33m}�[39m�[0m***
+  �[0m%7 �[0m= �[96m�[1mload�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m**�[0m, �[33m{�[39m�[33m}�[39m�[0m*** �[0m%tls_pgcstack�[0m, �[95malign�[39m �[33m8�[39m
+  �[96m�[1mstore�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m** �[0m%7�[0m, �[33m{�[39m�[33m}�[39m�[0m*** �[0m%6�[0m, �[95malign�[39m �[33m8�[39m
+  �[0m%8 �[0m= �[96m�[1mbitcast�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m*** �[0m%tls_pgcstack �[95mto�[39m �[33m{�[39m�[33m}�[39m�[0m***
+  �[96m�[1mstore�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m** �[0m%gcframe2.sub�[0m, �[33m{�[39m�[33m}�[39m�[0m*** �[0m%8�[0m, �[95malign�[39m �[33m8�[39m
+  �[0m%9 �[0m= �[96m�[1mcall�[22m�[39m �[95mnonnull�[39m �[33m{�[39m�[33m}�[39m�[0m* �[93m@ijl_box_int64�[39m�[33m(�[39m�[36mi64�[39m �[95msignext�[39m �[0m%0�[33m)�[39m
+  �[0m%10 �[0m= �[96m�[1mgetelementptr�[22m�[39m �[95minbounds�[39m �[33m[�[39m�[33m3�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m, �[33m[�[39m�[33m3�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m* �[0m%gcframe2�[0m, �[36mi64�[39m �[33m0�[39m�[0m, �[36mi64�[39m �[33m2�[39m
+  �[96m�[1mstore�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m* �[0m%9�[0m, �[33m{�[39m�[33m}�[39m�[0m** �[0m%10�[0m, �[95malign�[39m �[33m16�[39m
+  �[96m�[1mstore�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m* �[0m%9�[0m, �[33m{�[39m�[33m}�[39m�[0m** �[0m%.sub�[0m, �[95malign�[39m �[33m8�[39m
+  �[0m%11 �[0m= �[96m�[1mcall�[22m�[39m �[95mnonnull�[39m �[33m{�[39m�[33m}�[39m�[0m* �[93m@ijl_apply_generic�[39m�[33m(�[39m�[33m{�[39m�[33m}�[39m�[0m* �[95minttoptr�[39m �[33m(�[39m�[36mi64�[39m �[33m135560638216920�[39m �[95mto�[39m �[33m{�[39m�[33m}�[39m�[0m*�[33m)�[39m�[0m, �[33m{�[39m�[33m}�[39m�[0m** �[95mnonnull�[39m �[0m%.sub�[0m, �[36mi32�[39m �[33m1�[39m�[33m)�[39m
+  �[96m�[1mstore�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m* �[0m%11�[0m, �[33m{�[39m�[33m}�[39m�[0m** �[0m%10�[0m, �[95malign�[39m �[33m16�[39m
+  �[96m�[1mstore�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m* �[95minttoptr�[39m �[33m(�[39m�[36mi64�[39m �[33m135561391453088�[39m �[95mto�[39m �[33m{�[39m�[33m}�[39m�[0m*�[33m)�[39m�[0m, �[33m{�[39m�[33m}�[39m�[0m** �[0m%.sub�[0m, �[95malign�[39m �[33m8�[39m
+  �[0m%12 �[0m= �[96m�[1mgetelementptr�[22m�[39m �[95minbounds�[39m �[33m[�[39m�[33m2�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m, �[33m[�[39m�[33m2�[39m �[0mx �[33m{�[39m�[33m}�[39m�[0m*�[33m]�[39m�[0m* �[0m%1�[0m, �[36mi64�[39m �[33m0�[39m�[0m, �[36mi64�[39m �[33m1�[39m
+  �[96m�[1mstore�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m* �[0m%11�[0m, �[33m{�[39m�[33m}�[39m�[0m** �[0m%12�[0m, �[95malign�[39m �[33m8�[39m
+  �[0m%13 �[0m= �[96m�[1mcall�[22m�[39m �[95mnonnull�[39m �[33m{�[39m�[33m}�[39m�[0m* �[93m@ijl_apply_generic�[39m�[33m(�[39m�[33m{�[39m�[33m}�[39m�[0m* �[95minttoptr�[39m �[33m(�[39m�[36mi64�[39m �[33m135561165817200�[39m �[95mto�[39m �[33m{�[39m�[33m}�[39m�[0m*�[33m)�[39m�[0m, �[33m{�[39m�[33m}�[39m�[0m** �[95mnonnull�[39m �[0m%.sub�[0m, �[36mi32�[39m �[33m2�[39m�[33m)�[39m
+  �[0m%14 �[0m= �[96m�[1mload�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m*�[0m, �[33m{�[39m�[33m}�[39m�[0m** �[0m%5�[0m, �[95malign�[39m �[33m8�[39m
+  �[0m%15 �[0m= �[96m�[1mbitcast�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m*** �[0m%tls_pgcstack �[95mto�[39m �[33m{�[39m�[33m}�[39m�[0m**
+  �[96m�[1mstore�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m* �[0m%14�[0m, �[33m{�[39m�[33m}�[39m�[0m** �[0m%15�[0m, �[95malign�[39m �[33m8�[39m
+  �[96m�[1mret�[22m�[39m �[33m{�[39m�[33m}�[39m�[0m* �[0m%13
+�[33m}�[39m
+</pre>
+
+
+<div class="markdown"><p>To see the difference in running time, we can compare the output <code>@benchmark</code> for both:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>using BenchmarkTools: @benchmark</code></pre>
+
+
+<pre class='language-julia'><code class='language-julia'>@benchmark outer(2)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash175792">BenchmarkTools.Trial: 10000 samples with 1000 evaluations.
+ Range (min … max):  1.680 ns … 21.971 ns  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     2.080 ns              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   2.132 ns ±  0.799 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+             ▁▂▃▃▄▅▆▆ ██▇▇▅▄▄▂                                
+  ▂▂▃▃▃▄▄▄▄▃▆██████████████████▅▇▆▅▅▄▃▃▂▁▂▂▂▂▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁ ▄
+  1.68 ns        Histogram: frequency by time        2.78 ns &lt;
+
+ Memory estimate: 0 bytes, allocs estimate: 0.</pre>
+
+<pre class='language-julia'><code class='language-julia'>@benchmark blocked_outer(2)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash108573">BenchmarkTools.Trial: 10000 samples with 988 evaluations.
+ Range (min … max):  31.226 ns …  10.206 μs  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     55.111 ns               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   69.220 ns ± 365.765 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+                                ▁▃█▅                            
+  ▂▂▂▄▂▂▂▂▂▂▂▂▂▂▂▂▁▃▃▄▂▂▂▂▂▃▃▃▄▆████▇▃▅▆▅▅▄▃▃▃▃▃▃▃▃▂▂▂▂▃▂▂▂▂▂▂ ▃
+  31.2 ns         Histogram: frequency by time         74.8 ns &lt;
+
+ Memory estimate: 0 bytes, allocs estimate: 0.</pre>
+
+
+<div class="markdown"><p>So, even though benchmarks below 1 ns aren't reliable, we can see that the inferable function (<code>outer</code>) is much faster. Next, we'll show that this is not all due to having the extra call to <code>Base.inferencebarrier</code>.</p></div>
+
+
+<div class="markdown"><p>We've seen that knowing the types is important for the compiler, so let's improve the type inference for the function above. We could fix it in a few ways. We could add a type hint at the function. For example, a type hint could look like this:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>function with_type_hint(x)
+    Base.inferrencebarrier(x)::Int
+end;</code></pre>
+
+
+
+<div class="markdown"><p>With this, the output type of the function body is known:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>with_terminal() do
+    @code_warntype with_type_hint(1)
+end</code></pre>
+<pre id="plutouiterminal">MethodInstance for Main.var\"workspace#7\".with_type_hint(::Int64)
+  from with_type_hint(�[90mx�[39m)�[90m @�[39m �[90mMain.var\"workspace#7\"�[39m �[90m/builds/rikh/blog/posts/notebooks/�[39m�[90m�[4minference.jl#==#f6bece65-9735-4e4b-9e74-99735013fb93:1�[24m�[39m
+Arguments
+  #self#�[36m::Core.Const(Main.var\"workspace#7\".with_type_hint)�[39m
+  x�[36m::Int64�[39m
+Body�[36m::Int64�[39m
+�[90m1 ─�[39m %1 = Base.inferrencebarrier�[91m�[1m::Any�[22m�[39m
+�[90m│  �[39m %2 = (%1)(x)�[91m�[1m::Any�[22m�[39m
+�[90m│  �[39m %3 = Core.typeassert(%2, Main.var\"workspace#7\".Int)�[36m::Int64�[39m
+�[90m└──�[39m      return %3
+</pre>
+
+
+<div class="markdown"><p>which solves further inference problems if we use this method, but it is a bit risky. The <code>Core.typeassert</code> will assert the type and throw an error if the type turns out to be wrong. This hinders writing generic code. Also, it takes the system a little bit of time to actually assert the type.</p><p>So, instead it would be better to go to the root of the problem. Above, we had a dictionary <code>numbers</code>:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>numbers</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash994059">Dict{Symbol, AbstractFloat} with 2 entries:
+  :two =&gt; 2.0
+  :one =&gt; 1.0</pre>
+
+
+<div class="markdown"><p>The type is:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>typeof(numbers)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash146632">Dict{Symbol, AbstractFloat}</pre>
+
+
+<div class="markdown"><p>Where <code>AbstractFloat</code> is a non-concrete type meaning that it cannot have direct instance values, and more importantly meaning <strong>that we cannot say with certainty which method should be called for an object of such a type</strong>.</p></div>
+
+
+<div class="markdown"><p>We can make this type concrete by manually specifying the type of the dictionary. Now, Julia will automatically convert our <code>Float32</code> to a <code>Float64</code>:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>typednumbers = Dict{Symbol, Float64}(:one =&gt; 1f0, :two =&gt; 2.0);</code></pre>
+
+
+
+<div class="markdown"><p>Let's look again to the <code>@code_warntype</code>:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>with_terminal() do
+    @code_warntype use_double(typednumbers, :one)
+end</code></pre>
+<pre id="plutouiterminal">MethodInstance for Main.var\"workspace#7\".use_double(::Dict{Symbol, Float64}, ::Symbol)
+  from use_double(�[90mmapping�[39m, �[90mx�[39m)�[90m @�[39m �[90mMain.var\"workspace#7\"�[39m �[90m/builds/rikh/blog/posts/notebooks/�[39m�[90m�[4minference.jl#==#da60c86b-ed10-4475-988c-099d5929946e:1�[24m�[39m
+Arguments
+  #self#�[36m::Core.Const(Main.var\"workspace#7\".use_double)�[39m
+  mapping�[36m::Dict{Symbol, Float64}�[39m
+  x�[36m::Symbol�[39m
+Locals
+  doubled�[36m::Float64�[39m
+Body�[36m::String�[39m
+�[90m1 ─�[39m %1 = Main.var\"workspace#7\".double(mapping, x)�[36m::Float64�[39m
+�[90m│  �[39m      (doubled = 2 * %1)
+�[90m│  �[39m %3 = Main.var\"workspace#7\".string(doubled)�[36m::String�[39m
+�[90m└──�[39m      return %3
+</pre>
+
+
+<div class="markdown"><p>Great! So, this is now exactly the same function as above, but all the types are known and the compiler is happy.</p><p>Let's run the benchmarks for both <code>numbers</code> and <code>typednumbers</code>:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>@benchmark use_double(numbers, :one)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash815857">BenchmarkTools.Trial: 10000 samples with 516 evaluations.
+ Range (min … max):  185.562 ns … 284.108 μs  ┊ GC (min … max): 0.00% … 99.86%
+ Time  (median):     318.992 ns               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   443.865 ns ±   3.236 μs  ┊ GC (mean ± σ):  6.66% ±  1.88%
+
+                 ▃█▃                ▁▅▃▃▂                        
+  ▁▁▂▁▁▁▁▁▂▂▂▂▂▂████████▇▆▄▄▄▄▃▄▄▅▆████████▇▇▇▆▅▄▃▃▂▃▂▂▂▂▂▁▂▁▁▁ ▃
+  186 ns           Histogram: frequency by time          434 ns &lt;
+
+ Memory estimate: 168 bytes, allocs estimate: 4.</pre>
+
+<pre class='language-julia'><code class='language-julia'>@benchmark use_double(typednumbers, :one)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash887743">BenchmarkTools.Trial: 10000 samples with 927 evaluations.
+ Range (min … max):  102.654 ns … 248.014 μs  ┊ GC (min … max):  0.00% … 99.90%
+ Time  (median):     140.922 ns               ┊ GC (median):     0.00%
+ Time  (mean ± σ):   271.761 ns ±   2.637 μs  ┊ GC (mean ± σ):  13.13% ±  7.38%
+
+  █ ▃                                                            
+  █▇█▇▃▂▂▂▂▂▂▃▃▃▃▃▂▂▂▂▂▂▂▁▁▂▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▂▁▁▁▂▂▂▂▂▂▂▂▂▂▂ ▂
+  103 ns           Histogram: frequency by time         1.12 μs &lt;
+
+ Memory estimate: 432 bytes, allocs estimate: 2.</pre>
+
+
+<div class="markdown"><p>So, that's a reduction in running time which we basically got for free. The only thing we needed to do was look through our naive code and help out the compiler a bit by adding more information.</p><p>And this is exactly what I find so beautiful about the Julia language. You have this high-level language where you can be very expressive, write in whatever style you want and don't have to bother about putting type annotations on all your functions. Instead, you first focus on your proof of concept and get your code working and only <strong>then</strong> you start digging into optimizing your code. To do this, you can often get pretty far already by looking at <code>@code_warntype</code>.</p><p>But, what if your code contains more than a few functions? Let's take a look at some of the available tooling.</p></div>
+
+
+<div class="markdown"><h2>Tooling</h2><p>The most common tool for improving performance is a profiler. Julia has a profiler in the standard library:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>using Profile</code></pre>
+
+
+
+<div class="markdown"><p>This is a sampling-based profiler meaning that it takes samples to estimate how much time is spent in each function.</p></div>
+
+<pre class='language-julia'><code class='language-julia'>@profile foreach(x -&gt; blocked_outer(2), 1:100)</code></pre>
+
+
+
+<div class="markdown"><p>We can now call <code>Profile.print()</code> to see the output and how many samples were taken in each function. However, in most cases we want to have a nice plot. Here, I use <a href="https://github.com/kimikage/ProfileSVG.jl">ProfileSVG.jl</a>, but other options are also listed in the <a href="https://docs.julialang.org/en/v1/manual/profile/">Julia Profiling documentation</a>. See especially <a href="https://github.com/JuliaPerf/PProf.jl">PProf.jl</a> since that viewer can show graphs as well as flame graphs.</p></div>
+
+<pre class='language-julia'><code class='language-julia'>using ProfileSVG: @profview</code></pre>
+
+
+<pre class='language-julia'><code class='language-julia'>@profview foreach(x -&gt; blocked_outer(2), 1:10_000_000)</code></pre>
+<svg height="826" id="fig-0887869e4bd0442799503721e6f50df9" version="1.1" viewBox="0 0 960 826" width="960" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="fig-0887869e4bd0442799503721e6f50df9-clip"><rect height="826" width="960" x="0" y="0"></rect></clipPath></defs><style type="text/css">
+    #fig-0887869e4bd0442799503721e6f50df9 text {
+        pointer-events: none;
+        font-family: inherit;
+        font-size: 12px;
+        fill: #000000;
+    }
+    text#fig-0887869e4bd0442799503721e6f50df9-caption {
+        font-size: 16.8px;
+        fill: #000000;
+        text-anchor: middle;
+    }
+    #fig-0887869e4bd0442799503721e6f50df9-bg {
+        fill: #FFFFFF;
+    }
+    #fig-0887869e4bd0442799503721e6f50df9-viewport rect, #fig-0887869e4bd0442799503721e6f50df9-viewport path {
+        vector-effect: non-scaling-stroke;
+        fill-opacity: 1;
+    }
+    #fig-0887869e4bd0442799503721e6f50df9-viewport text {
+        stroke: #000000;
+        stroke-width: 0;
+        stroke-opacity: 0.35;
+    }
+    #fig-0887869e4bd0442799503721e6f50df9-viewport rect:hover, #fig-0887869e4bd0442799503721e6f50df9-viewport path:hover {
+        fill-opacity: 0.75;
+        stroke: #000000;
+        stroke-width: 0.5;
+    }
+    #fig-0887869e4bd0442799503721e6f50df9-viewport + rect {
+        fill: #FFFFFF;
+        opacity: 0.8;
+    }
+    text#fig-0887869e4bd0442799503721e6f50df9-details{
+        fill: #000000;
+    }
+</style><g clip-path="url(#fig-0887869e4bd0442799503721e6f50df9-clip)" id="fig-0887869e4bd0442799503721e6f50df9-frame"><rect height="826" id="fig-0887869e4bd0442799503721e6f50df9-bg" width="960" x="0" y="0"></rect><text id="fig-0887869e4bd0442799503721e6f50df9-caption" x="480" y="24">Profile results</text><g id="fig-0887869e4bd0442799503721e6f50df9-viewport" transform="scale(1)"><rect data-dinfo="" fill="#F3004D" height="15" rx="2" width="939.54" x="10" y="773"></rect><text dx="4" x="10" y="784.25"> in :-1</text><rect data-dinfo="./" fill="#00B58B" height="15" rx="2" width="313.18" x="10" y="758"></rect><text dx="4" x="10" y="769.25">#1055 in Base.jl:608</text><rect data-dinfo="./" fill="#E1B2FF" height="15" rx="2" width="313.18" x="10" y="743"></rect><text dx="4" x="10" y="754.25">profile_printing_listener in Base.jl:572</text><rect data-dinfo="./" fill="#00B58B" height="15" rx="2" width="313.18" x="10" y="728"></rect><text dx="4" x="10" y="739.25">wait in asyncevent.jl:159</text><rect data-dinfo="./" fill="#E1B2FF" height="15" rx="2" width="313.18" x="10" y="713"></rect><text dx="4" x="10" y="724.25">_trywait in asyncevent.jl:142</text><rect data-dinfo="./" fill="#00B58B" height="15" rx="2" width="313.18" x="10" y="698"></rect><text dx="4" x="10" y="709.25">wait in condition.jl:125</text><rect data-dinfo="./" fill="#E1B2FF" height="15" rx="2" width="313.18" x="10" y="683"></rect><text dx="4" x="10" y="694.25">#wait#645 in condition.jl:130</text><rect data-dinfo="./" fill="#00B58B" height="15" rx="2" width="313.18" x="10" y="668"></rect><text dx="4" x="10" y="679.25">wait in task.jl:1008</text><rect data-dinfo="./" fill="#E1B2FF" height="15" rx="2" width="313.18" x="10" y="653"></rect><text dx="4" x="10" y="664.25">poptask in task.jl:999</text><rect data-dinfo="/root/.julia/packages/Malt/Z3YQq/src/" fill="#2CA3FF" height="15" rx="2" width="313.18" x="323.18" y="758"></rect><text dx="4" x="323.18" y="769.25">#1 in worker.jl:120</text><rect data-dinfo="./" fill="#E40041" height="15" rx="2" width="313.18" x="323.18" y="743"></rect><text dx="4" x="323.18" y="754.25">eval in boot.jl:385</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#2CA3FF" height="15" rx="2" width="313.18" x="323.18" y="728"></rect><text dx="4" x="323.18" y="739.25">run_expression in PlutoRunner.jl:513</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#E40041" height="15" rx="2" width="313.18" x="323.18" y="713"></rect><text dx="4" x="323.18" y="724.25">#run_expression#31 in PlutoRunner.jl:595</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#2CA3FF" height="15" rx="2" width="313.18" x="323.18" y="698"></rect><text dx="4" x="323.18" y="709.25">with_logger_and_io_to_logs in PlutoRunner.jl:2864</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#6FDC91" height="15" rx="2" width="313.18" x="323.18" y="683"></rect><text dx="4" x="323.18" y="694.25">#with_logger_and_io_to_logs#126 in PlutoRunner.jl:2865</text><rect data-dinfo="./" fill="#2CA3FF" height="15" rx="2" width="313.18" x="323.18" y="668"></rect><text dx="4" x="323.18" y="679.25">with_logger in logging.jl:627</text><rect data-dinfo="./" fill="#E40041" height="15" rx="2" width="313.18" x="323.18" y="653"></rect><text dx="4" x="323.18" y="664.25">with_logstate in logging.jl:515</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#00B58B" height="15" rx="2" width="313.18" x="323.18" y="638"></rect><text dx="4" x="323.18" y="649.25">#127 in PlutoRunner.jl:2866</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#E1B2FF" height="15" rx="2" width="313.18" x="323.18" y="623"></rect><text dx="4" x="323.18" y="634.25">with_io_to_logs in PlutoRunner.jl:2789</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#00B58B" height="15" rx="2" width="313.18" x="323.18" y="608"></rect><text dx="4" x="323.18" y="619.25">#with_io_to_logs#123 in PlutoRunner.jl:2842</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#E1B2FF" height="15" rx="2" width="313.18" x="323.18" y="593"></rect><text dx="4" x="323.18" y="604.25">#32 in PlutoRunner.jl:618</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#00B58B" height="15" rx="2" width="313.18" x="323.18" y="578"></rect><text dx="4" x="323.18" y="589.25">run_expression in PlutoRunner.jl:513</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#E1B2FF" height="15" rx="2" width="313.18" x="323.18" y="563"></rect><text dx="4" x="323.18" y="574.25">run_expression in PlutoRunner.jl:513</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#D42137" height="15" rx="2" width="313.18" x="323.18" y="548"></rect><text dx="4" x="323.18" y="559.25">#run_expression#31 in PlutoRunner.jl:595</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#E1B2FF" height="15" rx="2" width="313.18" x="323.18" y="533"></rect><text dx="4" x="323.18" y="544.25">with_logger_and_io_to_logs in PlutoRunner.jl:2864</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#00B58B" height="15" rx="2" width="313.18" x="323.18" y="518"></rect><text dx="4" x="323.18" y="529.25">#with_logger_and_io_to_logs#126 in PlutoRunner.jl:2865</text><rect data-dinfo="./" fill="#E1B2FF" height="15" rx="2" width="313.18" x="323.18" y="503"></rect><text dx="4" x="323.18" y="514.25">with_logger in logging.jl:627</text><rect data-dinfo="./" fill="#D42137" height="15" rx="2" width="313.18" x="323.18" y="488"></rect><text dx="4" x="323.18" y="499.25">with_logstate in logging.jl:515</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#E1B2FF" height="15" rx="2" width="313.18" x="323.18" y="473"></rect><text dx="4" x="323.18" y="484.25">#127 in PlutoRunner.jl:2866</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#00B58B" height="15" rx="2" width="313.18" x="323.18" y="458"></rect><text dx="4" x="323.18" y="469.25">with_io_to_logs in PlutoRunner.jl:2789</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#E1B2FF" height="15" rx="2" width="313.18" x="323.18" y="443"></rect><text dx="4" x="323.18" y="454.25">#with_io_to_logs#123 in PlutoRunner.jl:2842</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#00B58B" height="15" rx="2" width="313.18" x="323.18" y="428"></rect><text dx="4" x="323.18" y="439.25">#32 in PlutoRunner.jl:599</text><rect data-dinfo="/root/.julia/packages/Pluto/RveGH/src/runner/PlutoRunner/src/" fill="#E1B2FF" height="15" rx="2" width="313.18" x="323.18" y="413"></rect><text dx="4" x="323.18" y="424.25">run_inside_trycatch in PlutoRunner.jl:481</text><rect data-dinfo="./" fill="#D42137" height="15" rx="2" width="313.18" x="323.18" y="398"></rect><text dx="4" x="323.18" y="409.25">eval in boot.jl:385</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="383"></rect><text dx="4" x="323.18" y="394.25">typeinf_ext_toplevel in typeinfer.jl:1078</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="368"></rect><text dx="4" x="323.18" y="379.25">typeinf_ext_toplevel in typeinfer.jl:1082</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="353"></rect><text dx="4" x="323.18" y="364.25">typeinf_ext in typeinfer.jl:1051</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="338"></rect><text dx="4" x="323.18" y="349.25">typeinf in typeinfer.jl:216</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="323"></rect><text dx="4" x="323.18" y="334.25">_typeinf in typeinfer.jl:247</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="308"></rect><text dx="4" x="323.18" y="319.25">typeinf_nocycle in abstractinterpretation.jl:3186</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="293"></rect><text dx="4" x="323.18" y="304.25">typeinf_local in abstractinterpretation.jl:3098</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="278"></rect><text dx="4" x="323.18" y="289.25">abstract_eval_basic_statement in abstractinterpretation.jl:2913</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="263"></rect><text dx="4" x="323.18" y="274.25">abstract_eval_statement in abstractinterpretation.jl:2624</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="248"></rect><text dx="4" x="323.18" y="259.25">abstract_eval_statement_expr in abstractinterpretation.jl:2380</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="233"></rect><text dx="4" x="323.18" y="244.25">abstract_eval_call in abstractinterpretation.jl:2370</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="218"></rect><text dx="4" x="323.18" y="229.25">abstract_call in abstractinterpretation.jl:2354</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="203"></rect><text dx="4" x="323.18" y="214.25">abstract_call in abstractinterpretation.jl:2162</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="188"></rect><text dx="4" x="323.18" y="199.25">abstract_call in abstractinterpretation.jl:2169</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="173"></rect><text dx="4" x="323.18" y="184.25">abstract_call_known in abstractinterpretation.jl:2087</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="158"></rect><text dx="4" x="323.18" y="169.25">abstract_call_gf_by_type in abstractinterpretation.jl:95</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="143"></rect><text dx="4" x="323.18" y="154.25">abstract_call_method in abstractinterpretation.jl:629</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="128"></rect><text dx="4" x="323.18" y="139.25">typeinf_edge in typeinfer.jl:930</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="113"></rect><text dx="4" x="323.18" y="124.25">typeinf in typeinfer.jl:216</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="98"></rect><text dx="4" x="323.18" y="109.25">_typeinf in typeinfer.jl:247</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="83"></rect><text dx="4" x="323.18" y="94.25">typeinf_nocycle in abstractinterpretation.jl:3186</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="68"></rect><text dx="4" x="323.18" y="79.25">typeinf_local in abstractinterpretation.jl:3098</text><rect data-dinfo="./compiler/" fill="#E1B2FF" height="15" rx="2" width="0.79" x="323.18" y="53"></rect><text dx="4" x="323.18" y="64.25">abstract_eval_basic_statement in abstractinterpretation.jl:2913</text><rect data-dinfo="./compiler/" fill="#00B58B" height="15" rx="2" width="0.79" x="323.18" y="38"></rect><text dx="4" x="323.18" y="49.25">abstract_eval_statement in abstractinterpretation.jl:2624</text><rect data-dinfo="./" fill="#6FDC91" height="15" rx="2" width="310" x="323.97" y="383"></rect><text dx="4" x="323.97" y="394.25">foreach in abstractarray.jl:3097</text><rect data-dinfo="./" fill="#2CA3FF" height="15" rx="2" width="0.8" x="323.97" y="368"></rect><text dx="4" x="323.97" y="379.25">iterate in range.jl:901</text><rect data-dinfo="./" fill="#6FDC91" height="15" rx="2" width="0.8" x="323.97" y="353"></rect><text dx="4" x="323.97" y="364.25">== in promotion.jl:521</text><rect data-dinfo="/builds/rikh/blog/posts/notebooks/" fill="#D42137" height="15" rx="2" width="309.2" x="324.77" y="368"></rect><text dx="4" x="324.77" y="379.25">#1 in inference.jl#==#a3cbe176-d1b9-485c-b655-ee9f164e84a3:1</text><rect data-dinfo="/builds/rikh/blog/posts/notebooks/" fill="#F3004D" height="15" rx="2" width="292.51" x="324.77" y="353"></rect><text dx="4" x="324.77" y="364.25">blocked_outer in inference.jl#==#e02d6f85-22da-4262-9dad-3911c2222280:1</text><rect data-dinfo="./" fill="#2CA3FF" height="15" rx="2" width="3.18" x="471.82" y="338"></rect><text dx="4" x="471.82" y="349.25">* in int.jl:88</text><rect data-dinfo="/builds/rikh/blog/posts/notebooks/" fill="#00B58B" height="15" rx="2" width="2.38" x="475" y="338"></rect><text dx="4" x="475" y="349.25">inner in inference.jl#==#0e9b74c1-723d-4ca1-8526-c77c12a17ee0:1</text><rect data-dinfo="./" fill="#2CA3FF" height="15" rx="2" width="24.65" x="480.56" y="338"></rect><text dx="4" x="480.56" y="349.25">* in int.jl:88</text><rect data-dinfo="./" fill="#00B58B" height="15" rx="2" width="0.79" x="517.13" y="338"></rect><text dx="4" x="517.13" y="349.25">* in int.jl:88</text><rect data-dinfo="/builds/rikh/blog/posts/notebooks/" fill="#2CA3FF" height="15" rx="2" width="34.18" x="517.92" y="338"></rect><text dx="4" x="517.92" y="349.25">inner in inference.jl#==#0e9b74c1-723d-4ca1-8526-c77c12a17ee0:1</text><rect data-dinfo="./" fill="#6FDC91" height="15" rx="2" width="20.67" x="517.92" y="323"></rect><text dx="4" x="517.92" y="334.25">* in int.jl:88</text><rect data-dinfo="/builds/rikh/blog/posts/notebooks/" fill="#E1B2FF" height="15" rx="2" width="1.59" x="633.97" y="383"></rect><text dx="4" x="633.97" y="394.25">blocked_outer in inference.jl#==#e02d6f85-22da-4262-9dad-3911c2222280:1</text><rect data-dinfo="./" fill="#00B58B" height="15" rx="2" width="313.18" x="636.36" y="758"></rect><text dx="4" x="636.36" y="769.25">task_done_hook in task.jl:682</text><rect data-dinfo="./" fill="#E1B2FF" height="15" rx="2" width="313.18" x="636.36" y="743"></rect><text dx="4" x="636.36" y="754.25">wait in task.jl:1008</text><rect data-dinfo="./" fill="#00B58B" height="15" rx="2" width="313.18" x="636.36" y="728"></rect><text dx="4" x="636.36" y="739.25">poptask in task.jl:999</text></g></g><script></script><script></script><script></script></svg>
+
+
+<div class="markdown"><p>In this image, you can click on an element to see the location of the called function. Unfortunately, because the page that you're looking at was running inside a Pluto notebook, this output shows a bit of noise. You can focus on everything above <code>eval in boot.jl</code> to see where the time was spent. In essence, the idea is here that the wider a block, the more time is spent on it. Also, blocks which lay on top of other block indicate that they were called inside the outer block. As can be seen, the profiler is very useful to get an idea of which function takes the most time to run.</p><p>However, this doesn't tell us <strong>what</strong> is happening exactly. For that, we need to dive deeper and look critically at the source code of the function which takes long. Sometimes, that already provides enough information to see what can be optimized. In other cases, the problem isn't so obvious. Probably, there is a type inference problem because that can make huge differences as is shown in the section above. One way would then be to go to the function which takes the most time to run and see how the type inference looks via <code>@code_warntype</code>. Unfortunately, this can be a bit tricky. Consider, for example, a function with keyword arguments:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>with_keyword_arguments(a; b=3) = a + b;</code></pre>
+
+
+<pre class='language-julia'><code class='language-julia'>with_terminal() do
+    @code_warntype with_keyword_arguments(1)
+end</code></pre>
+<pre id="plutouiterminal">MethodInstance for Main.var\"workspace#7\".with_keyword_arguments(::Int64)
+  from with_keyword_arguments(�[90ma�[39m; b)�[90m @�[39m �[90mMain.var\"workspace#7\"�[39m �[90m/builds/rikh/blog/posts/notebooks/�[39m�[90m�[4minference.jl#==#8a64d202-811c-4189-b306-103054acdc28:1�[24m�[39m
+Arguments
+  #self#�[36m::Core.Const(Main.var\"workspace#7\".with_keyword_arguments)�[39m
+  a�[36m::Int64�[39m
+Body�[36m::Int64�[39m
+�[90m1 ─�[39m %1 = Main.var\"workspace#7\".:(var\"#with_keyword_arguments#3\")(3, #self#, a)�[36m::Int64�[39m
+�[90m└──�[39m      return %1
+</pre>
+
+
+<div class="markdown"><p>Here, we don't see the <code>a + b</code> as we would expect, but instead see that the <code>with_keyword_arguments</code> calls another function without keyword arguments. Now, we would need to manually call this nested function with a generated name <code>var"#with_keyword_arguments#1"</code> with exactly the right inputs to see what <code>@code_warntype</code> does exactly inside this function. Even worse, imagine that you have a function which calls a function which calls a function...</p><p>To solve this, there is <a href="https://github.com/JuliaDebug/Cthulhu.jl">Cthulhu.jl</a>. With Cthulhu, it is possible to <code>@descend</code> into a function and see the code warntype. Next, the arrow keys and enter can be used to step into a function and see the code warntype for that. By continuously stepping into and out of functions, it is much easier to see what code is calling what and where exactly the type inference starts to fail. Often, by solving a type inference problem at exactly the right spot, inference problems for a whole bunch of functions can be fixed. For more information about Cthulhu, see the GitHub page linked above.</p></div>
+
+
+<div class="markdown"><p>A complementary tool to find the root of type problems is <a href="https://github.com/aviatesk/JET.jl">JET.jl</a>. Basically, this tool can automate the process described above. It relies on Julia's compiler and can point to the root of type inference problems. Let's do a demo. Here, we use the optimization analysis:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>using JET: @report_opt</code></pre>
+
+
+<pre class='language-julia'><code class='language-julia'>@report_opt blocked_outer(2)</code></pre>
+<pre class="code-output documenter-example-output" id="var-hash754991">═════ 2 possible errors found ═════
+┌ blocked_outer(x::Int64) @ Main.var"workspace#7" /builds/rikh/blog/posts/notebooks/inference.jl#==#e02d6f85-22da-4262-9dad-3911c2222280:1
+│ runtime dispatch detected: Main.var"workspace#7".inner(x::Int64)::Any
+└────────────────────
+┌ blocked_outer(x::Int64) @ Main.var"workspace#7" /builds/rikh/blog/posts/notebooks/inference.jl#==#e02d6f85-22da-4262-9dad-3911c2222280:1
+│ runtime dispatch detected: (3 Main.var"workspace#7".:* %1::Any)::Any
+└────────────────────
+</pre>
+
+
+<div class="markdown"><p>In this case, the tool points out exactly the problem we've had. Namely, because the function definition is <code>3 * inner(Base.inferencebarrier(x))</code>, the <code>inner</code> function call cannot be optimized because the type is unknown at that point. Also, the output of <code>inner(Base.inferencebarrier(x))</code> is unkown and we have another runtime dispatch.</p><p>For extremely long outputs, it can be useful to print the output of JET to a file to easily navigate through the output.</p><p>These are the most important tools to improve performance. If this is all you care about, then feel free to stop reading here. In the next section, let's take a look at how to reduce the time to first X.</p></div>
+
+
+<div class="markdown"><h2>Precompilation</h2><p>As described above, Julia does lots of optimizations on your code. For example, it removes unnecessary function calls and hardcodes method calls if possible. This takes time and that is a problem. Like said above, Makie runs extremely quick after the first time that you have created a plot going from 40 seconds to something like 0.001 seconds. And, we need to wait all these seconds every time that we restart Julia. Of course, Julia developers don't develop by changing their plotting code and wait 40 seconds to see the output. We use tools such as <a href="https://github.com/fonsp/Pluto.jl">Pluto.jl</a> or <a href="https://github.com/timholy/Revise.jl">Revise.jl</a> to use code changes without restarting Julia. Still, sometimes it is necessary to restart Julia, so what can we do to reduce the compilation time?</p><p>Well, we can reduce the compilation time by shouting <strong>I am the compiler now!</strong> and write optimized code manually. For example, this is done in <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/1465">OrdinaryDiffEq.jl#1465</a>. In some cases, this can be a great last-resort solution to make some compilation time disappear.</p><p>However, it is quite laborious and not suitable in all cases. A very nice alternative idea is to move the compilation time into the <em>precompilation</em> stage. Precompilation occurs right after package installation or when loading a package after it has been changed. The results of this compilation are retained even after restarting the Julia instance. So, instead of having to compile things for each restart, we just compile it only when changing the package! Sounds like a good deal.</p><p>It is a good deal. Except, we have to note that we're working with the Julia language. Not all functions have typed arguments let alone concretely typed arguments, so the precompile phase cannot always know <strong>what</strong> it should compile. Even more, Julia by default doesn't compile all functions with concretely typed arguments. It just assumes that some function will probably not be used, so no need to precompile it. This is on purpose, to avoid developers putting concrete types everywhere which would make Julia packages less composable which is a very fair argument.</p><p>Anyway, we can fix this by adding precompile directives ourselves. For example, we can create a new function, call <code>precompile</code> on it for integers and look at the existing method specializations:</p></div>
+
+<pre class='language-julia'><code class='language-julia'>begin
+    add_one(x) = x + 1
+    precompile(add_one, (Int,))
+    methods(add_one)[1].specializations
+end</code></pre>
+<pre class="code-output documenter-example-output" id="var-add_one">MethodInstance for Main.var"workspace#7".add_one(::Int64)</pre>
+
+
+<div class="markdown"><p>A method specialization is just another way of saying a compiled instance for a method. So, a specialization is always for some concrete types. This method specialization shows that <code>add_one</code> is compiled even though we haven't called <code>add_one</code> yet. The function is completely ready for use for integers. If we pass another type, the function would still need to compile.</p><p>What is nice about this is that the <code>precompile</code> will compile everything recursively. So, say, we have a large codebase handling some kind of notebooks and the package has some kind of <code>open</code> function with concrete types such as a <code>ServerSession</code> to open the notebook into and a <code>String</code> with the path for the notebook location, then we can add a precompile on that function as follows:</p><pre><code class="language-julia">precompile(open, (ServerSession, String))</code></pre><p>Inside this large codebase. Since the <code>open</code> function is calling many other functions, the <code>precompile</code> will compile many functions and can reduce the time to first X by a lot. This is what happened in <a href="https://github.com/fonsp/Pluto.jl/pull/1934">Pluto.jl#1934</a>. We've added <strong>one line of code</strong> to reduce the time to first open a notebook from 11 to 8 seconds. That is a 30% reduction in running time by adding one line of code. To figure out where you need to add precompile directives exactly, you can use <a href="https://github.com/timholy/SnoopCompile.jl">SnoopCompile.jl</a>.</p><p>Alas, now you probably wonder why we didn't have a 100% reduction. The answer is type inference. <code>precompile</code> will go through all the functions recursively but once the type becomes non-concrete, it cannot know what to compile. To fix this, we can use the tools presented above to fix type inference problems.</p><p>In conclusion, this is what I find so beautiful about the language. You can hack your proof-of-concept together in very naive ways and then throw on a few precompiles if you want to reduce the TTFX. Then, once you need performance, you can pinpoint what method takes the most time, look at the generated LLVM code and start fixing problems such as type inference. Improving the inferability will often make code more readable, it will reduce running time <strong>and</strong> it will reduce time to first X; all at the same time.</p></div>
+
+
+<div class="markdown"><h2>Acknowledgements</h2><p>Thanks to <a href="https://github.com/heltonmc">Michael Helton</a>, <a href="https://github.com/rfourquet">Rafael Fourquet</a> and <a href="https://gdalle.github.io/">Guillaume Dalle</a> for providing feedback on this blog post.</p></div>
+
+
+<div class="markdown"><h2>Appendix</h2></div>
+<div class='manifest-versions'>
+<p>Built with Julia 1.10.5 and</p>
+BenchmarkTools 1.4.0<br>
+JET 0.8.27<br>
+PlutoUI 0.7.55<br>
+ProfileSVG 0.2.1
+</div>
+
+<!-- PlutoStaticHTML.End -->
+~~~
+
+
+     ~~~
+     <div class='notebook-link'>
+     <i>
+     To run this blog post locally, open
+     <a href='/posts/notebooks/inference.jl'>this notebook</a>
+     with Pluto.jl.
+     </i>
+     </div>
+     ~~~
+
