@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Comparing means and SDs - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Comparing means and SDs" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Transforming means and SDs from numbers in different ranges to the same range." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Comparing means and SDs" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Comparing means and SDs </h1> 
+   <span class="page-date"> 2020-06-27 </span> 
+</div>
+<div class="franklin-content">
+<p>When comparing different papers it might be that the papers have numbers about the same thing, but that the numbers are on different scales. Forr example, many different questionnaires exists measuring the same constructs such as the NEO-PI and the BFI both measure the Big Five personality traits. Say, we want to compare reported means and standard deviations &#40;SDs&#41; for these questionnaires, which both use a Likert scale.</p>
+<p>In this post, the equations to rescale reported means and standard deviations &#40;SDs&#41; to another scale are derived. Before that, an example is worked trough to get an intuition of the problem.</p>
+<div class="franklin-toc"><ol><li><a href="#preliminaries">Preliminaries</a></li><li><a href="#an_example_with_numbers">An example with numbers</a></li><li><a href="#linear_transformations">Linear transformations</a></li><li><a href="#transformations">Transformations</a></li><li><a href="#references">References</a></li></ol></div>
+<h2 id="preliminaries"><a href="#preliminaries" class="header-anchor">Preliminaries</a></h2>
+<p>In this post, I stick to the set theory convention of denoting sets by uppercase letters. So, \(|A|\) denotes the number of items in the set \(A\) and \(|a|\) denotes the absolute value of the number \(a\). To say that predicate \(P_x\) holds for all elements in \(X\), I use the notation \(\forall_t[t \in T : P_x]\), for example: if \(X\) contains all integers above 3, then we can write \(\forall_x[x \in X : 3 < x]\).</p>
+<p>For some study, let the set of participants and questions be respectively denoted by \(P\) and \(Q\) with \(|P| = n\) and \(|Q| = v\). Let the set of responses be denoted by \(R\) with \(|R| = n \cdot v\) and let \(T\) denote the set of the summed scores per participant, that is, \(T = \{ t_1, t_2, \ldots, t_n \}\), see the table below.</p>
+<table><tr><th align="right">\(P\)</th><th align="right">\(q_1\)</th><th align="right">\(q_2\)</th><th align="right">...</th><th align="right">\(q_v\)</th><th align="right">Total</th></tr><tr><td align="right">\(p_1\)</td><td align="right">\(r_{11}\)</td><td align="right">\(r_{12}\)</td><td align="right">...</td><td align="right">\(r_{1v}\)</td><td align="right">\(t_1 = \sum_{q \in Q} \: r_{1q}\)</td></tr><tr><td align="right">\(p_2\)</td><td align="right">\(r_{21}\)</td><td align="right">\(r_{22}\)</td><td align="right">...</td><td align="right">\(r_{2v}\)</td><td align="right">\(t_2 = \sum_{q \in Q} \: r_{2q}\)</td></tr><tr><td align="right">...</td><td align="right">...</td><td align="right">...</td><td align="right">...</td><td align="right">...</td><td align="right">...</td></tr><tr><td align="right">\(p_n\)</td><td align="right">\(r_{n1}\)</td><td align="right">\(r_{n2}\)</td><td align="right">...</td><td align="right">\(r_{nv}\)</td><td align="right">\(t_n = \sum_{q \in Q} \: r_{nq}\)</td></tr></table>
+<p>Let \(m\) and \(s\) denote respectively the reported mean and sample SD. We assume that the papers calculated the mean and SD with</p>
+\[ m = mean(T) = \frac{\sum T}{|P|} \]
+<p>and</p>
+\[ s = sd(T) = \sqrt{Var(T)} = \sqrt{\frac{1}{n - 1} \sum_{p \in P} (t_p - m)^2}. \]
+<p>Note here that Bessel&#39;s correction is applied, because \(\frac{1}{n - 1}\) instead of \(\frac{1}{n}\). This seems to be the default way to calculate the standard deviation.</p>
+<h2 id="an_example_with_numbers"><a href="#an_example_with_numbers" class="header-anchor">An example with numbers</a></h2>
+<p>Lets consider one study consisting of only one question and three participants. Each response \(u \in U\) is an integer &#40;\(\mathbb{Z}\)&#41; in the range &#91;1, 3&#93;, that is, \(\forall_u[u \in U : u \in \mathbb{Z} \land 1 \leq u \leq 3]\). So, the lower and upper bound of \(u\) are respectively \(u_l = 1\) and \(u_u = 3\).</p>
+<table><tr><th align="right">\(P\)</th><th align="right">\(U\)</th><th align="right">Total</th></tr><tr><td align="right">\(p_1\)</td><td align="right">3</td><td align="right">3</td></tr><tr><td align="right">\(p_2\)</td><td align="right">1</td><td align="right">1</td></tr><tr><td align="right">\(p_3\)</td><td align="right">2</td><td align="right">2</td></tr></table>
+<p>We can rescale these numbers to a normalized response \(v \in V\) in the range &#91;0, 1&#93; by applying <a href="https://en.wikipedia.org/wiki/Feature_scaling">min-max normalization</a>,</p>
+\[ v = \frac{u - u_l}{u_u - u_l} = \frac{u - 1}{3 - 1} = \frac{u - 1}{2}. \]
+<p>The rescaled responses become</p>
+<table><tr><th align="right">\(P\)</th><th align="right">\(V\)</th><th align="right">Total</th></tr><tr><td align="right">\(p_1\)</td><td align="right">1</td><td align="right">1</td></tr><tr><td align="right">\(p_2\)</td><td align="right">0</td><td align="right">0</td></tr><tr><td align="right">\(p_3\)</td><td align="right">\(\frac{1}{2}\)</td><td align="right">\(\frac{1}{2}\)</td></tr></table>
+<p>Now, suppose that the study would have used a scale in the range &#91;0, 5&#93;. Let these responses be denoted by \(w \in W\).  We can rescale the normalized responses \(v \in V\) in the range &#91;0, 1&#93; up to \(w \in W\) in the range &#91;0, 5&#93; with</p>
+\[ w = v \cdot (w_u - w_l) + w_l = v \cdot (5 - 0) + 0 = 5v. \]
+<p>This results in</p>
+<table><tr><th align="right">\(P\)</th><th align="right">\(W\)</th><th align="right">Total</th></tr><tr><td align="right">\(p_1\)</td><td align="right">5</td><td align="right">5</td></tr><tr><td align="right">\(p_2\)</td><td align="right">0</td><td align="right">0</td></tr><tr><td align="right">\(p_3\)</td><td align="right">\(2 \frac{1}{2}\)</td><td align="right">\(2 \frac{1}{2}\)</td></tr></table>
+<p>Since we know all the responses, we can calculate the means and standard deviations:</p>
+<table><tr><th align="right">responses</th><th align="right">mean</th><th align="right">sd</th></tr><tr><td align="right">\(U\)</td><td align="right">\(2\)</td><td align="right">\(1\)</td></tr><tr><td align="right">\(V\)</td><td align="right">\(\frac{1}{2}\)</td><td align="right">\(\frac{1}{2}\)</td></tr><tr><td align="right">\(W\)</td><td align="right">\(2 \frac{1}{2}\)</td><td align="right">\(2 \frac{1}{2}\)</td></tr></table>
+<p>Now, suppose that \(U\) was part of a study reported in a paper and the scale of \(V\) was the scale we have for our own study. Of course, a typical study doesn&#39;t give us all responses \(u \in U\). Instead, we only have \(mean(U)\) and \(sd(U)\) and want to know \(mean(W)\) and \(sd(W)\). This can be done by using the equations derived below. We could first normalize the result, by Eq. <span class="eqref">(<a href="#normalize_mean">14</a>)</span>,</p>
+\[ mean(V) = \frac{mean(U) - u_l}{u_u - u_l} = \frac{mean(U) - 1}{3 - 1} = \frac{2 - 1}{2} = \frac{1}{2} \]
+<p>and, by Eq. <span class="eqref">(<a href="#normalize_sd">15</a>)</span>,</p>
+\[ sd(V) = \frac{sd(U)}{u_u - u_l} = \frac{sd(U)}{3 - 1} = \frac{1}{2}. \]
+<p>Next, we can rescale this to the range of \(W\).  By Eq. <span class="eqref">(<a href="#denormalize_mean">16</a>)</span>,</p>
+\[ mean(W) = (w_u - w_l) \cdot mean(V) + w_l = (5 - 0) \cdot mean(V) + 0 = 5 \cdot \frac{1}{2} = 2 \frac{1}{2} \]
+<p>and, by Eq. <span class="eqref">(<a href="#denormalize_sd">17</a>)</span>,</p>
+\[ sd(W) = (w_u - w_l) \cdot sd(V) = (5 - 0) \cdot \frac{1}{2} = 2 \frac{1}{2}. \]
+<p>We could also go from \(U\) to \(W\) in one step. By Eq. <span class="eqref">(<a href="#rescale_mean">18</a>)</span>,</p>
+\[ mean(W) = (w_u - w_l) \cdot \frac{mean(U) - u_l}{u_u - u_l} + g_l = (5 - 0) \cdot \frac{2 - 1}{3 - 1} + 0 = 2 \frac{1}{2}. \]
+<p>and, by Eq. <span class="eqref">(<a href="#rescale_sd">19</a>)</span>,</p>
+\[ sd(W) = (w_u - w_l) \cdot \frac{sd(U)}{u_u - u_l} = (5 - 0) \cdot \frac{1}{3 - 1} = 2 \frac{1}{2}. \]
+<h2 id="linear_transformations"><a href="#linear_transformations" class="header-anchor">Linear transformations</a></h2>
+<p>Consider a random variable \(X\) with a finite mean and variance, and some constants \(a\) and \(b\). Before we can derive the transformations, we need some equations to be able to move \(a\) and \(b\) out of \(mean(aX + b)\) and \(sd(aX + b)\).</p>
+<p>For the mean, the transformation is quite straightforward,</p>
+\[ 
+\begin{aligned}
+mean(aX + b) &= \frac{\sum_{i=1}^{|X|} (ax_i + b)}{|X|} \\
+  &= \frac{\sum_{i=1}^{|X|} (ax_i) + |X|b}{|X|} \\
+  &= \frac{\sum_{i=1}^{|X|} (ax_i)}{|X|} + b \\
+  &= \frac{a \sum_{i=1}^{|X|}(x_i)}{|X|} + b \\
+  &= a \cdot \frac{\sum_{i=1}^{|X|}(x_i)}{|X|} + b \\
+  &= a \cdot mean(x) + b. 
+\end{aligned}
+\]
+<p>Note that the position of constant \(b\) makes intuitive sense: for example, if you add a constant \(b\) to all the elements of a sample, then the mean will move by \(b\). To scale the standard deviation, we can use the equation for a linear transformation of the variance <span class="bibref">(<a href="#hogg2018">Hogg et al. (2018)</a>)</span>,</p>
+\[ Var(aX + b) = a^2 \cdot Var(X). \]
+<p>We can use this to derive that</p>
+\[ sd(aX + b) = \sqrt{Var(aX + b)} = \sqrt{a^2 \cdot Var(X)} = |a| \cdot sd(X). \]
+<h2 id="transformations"><a href="#transformations" class="header-anchor">Transformations</a></h2>
+<p>Next, we derive the equations for the transformations. Let \(l\) and \(u\) be respectively the lower and upper bound for the Likert scale over all the answers; specifically, \(\forall_t [t \in T : l \leq t \leq u]\). Let \(k_l\) and \(k_u\) be respectively the lower and upper bound for the Likert scale per answer; specifically, \(\forall_r [ r \in R : k_l \leq r \leq k_u]\). Now, for the normalized mean \(mean(T')\),</p>
+<a id="normalize_mean" class="anchor"></a>\[
+mean(T')
+  = mean \left( \frac{T - k_l}{k_u - k_l} \right)
+  = \frac{mean(T - k_l)}{k_u - k_l}
+  = \frac{mean(T) - k_l}{k_u - k_l}
+  = \frac{mean(T) - k_l}{k_u - k_l}
+  
+\]
+<p>and for the normalized SD \(sd(T')\),</p>
+<a id="normalize_sd" class="anchor"></a>\[
+sd(T')
+  = sd \left( \frac{T - k_l}{k_u - k_l} \right)
+  = \frac{sd(T - k_l)}{|k_u - k_l|}
+  = \frac{sd(T)}{k_u - k_l}
+  
+\]
+<p>where \(|k_u - k_l| = k_u - k_l\) since we know that both are positive and \(k_l < k_u\).</p>
+<p>To change these normalized scores back to another scale in the range \([g_l, g_u]\), we can use</p>
+<a id="denormalize_mean" class="anchor"></a>\[
+mean(T'')
+  = mean((g_u - g_l) \cdot T' + g_l) 
+  = (g_u - g_l) \cdot mean(T') + g_l
+  
+\]
+<p>and</p>
+<a id="denormalize_sd" class="anchor"></a>\[
+sd(T'')
+ = sd((g_u - g_l) \cdot T' + g_l)
+ = (g_u - g_l) \cdot sd(T')
+ 
+\]
+<p>We can also transform the mean and SD into one step from the range \([k_l, k_u]\) to \([g_l, g_u]\) with</p>
+<a id="rescale_mean" class="anchor"></a>\[ 
+\begin{aligned}
+mean(T'') &= (g_u - g_l) \cdot mean(T') + g_l \\
+ &= (g_u - g_l) \cdot \frac{mean(T) - k_l}{k_u - k_l} + g_l
+\end{aligned}
+
+\]
+<p>and </p>
+<a id="rescale_sd" class="anchor"></a>\[ 
+\begin{aligned}
+sd(T'') &= (g_u - g_l) \cdot sd(T') \\
+ &= (g_u - g_l) \cdot \frac{sd(T')}{k_u - k_l}
+\end{aligned}
+
+\]
+<h2 id="references"><a href="#references" class="header-anchor">References</a></h2>
+<p><a id="hogg2018" class="anchor"></a>  Hogg, R. V., McKean, J., &amp; Craig, A. T. &#40;2018&#41;.  Introduction to mathematical statistics.  Pearson Education.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

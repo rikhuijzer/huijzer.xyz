@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Some SaaS banned me, again - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Some SaaS banned me, again" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="A reminder to not trust software as a service." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Some SaaS banned me, again" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Some SaaS banned me, again </h1> 
+   <span class="page-date"> 2024-04-29 </span> 
+</div>
+<div class="franklin-content">
+<p>A few years ago, a good friend of mine happily moved to Microsoft Office 365. It was great, he said, because his files were synced across all his devices and he felt it was making him more productive. He even stored many gigabytes of personal pictures on OneDrive because the storage pricing was fair and it was easy to do. Then, he shared his picture collection with one person and got banned almost immediately. No OneDrive, no Word, no opportunity for backup, no nothing. Contacting customer support didn&#39;t help. If I remember correctly, Microsoft claimed he was possibly involved in terrorist activities. In truth, Microsoft probably had a problem with sharing pictures of children. But, he shared the pictures with <strong>his own wife</strong>. He shared pictures of <strong>his children</strong> with <strong>his wife</strong>. The Dutch tech site Tweakers wrote a long article about similar events with software as a service &#40;SaaS&#41; platforms in <a href="https://tweakers.net/reviews/9094/account-geblokkeerd-wat-nu.html">2021</a>, so this was not an one-off occurrence.</p>
+<p>In 2021, me Jose Storopoli and Lazaro Alonso wrote the <a href="https://juliadatascience.io/">Julia Data Science</a> book. We heard about self publishing via Amazon Kindle Direct Publishing and happily put our book there. It was a minor success. We sold about a dozen books per month from October 2021 to March 2023. Then our account was suddenly terminated. I contacted customer support but they refused to reinstate my account. The reason was that I apparently had another account that was terminated and I had opened a new account. Therefore, my account was terminated, all published titles were removed from sale, and outstanding royalties were not paid out. This could be true. I might have had another account. What I think is the real reason, though, is that we were not selling enough books. March 2023 were very uncertain times and lots of companies were trying to save costs. Also, my customer account for Amazon still works. I&#39;m still allowed to spend money on Amazon.</p>
+<p>Today I got banned from a SaaS that provided me with access to Llama 3. I won&#39;t say names to give them time to provide customer support. Just like the other two cases, there was no warning and I have put in much effort to be a good customer. I even told my friends how great the service was. This morning, I read the terms of service and I still don&#39;t see what I could have done wrong.</p>
+<p>From what I see on the internet, I&#39;m not the only one who has been banned. People get banned for no reason all the time. It is such a common occurrence that the European Union introduced a Digital Services Act to prevent this. Platforms should now provide detailed explanations if they block accounts.</p>
+<p>And I get it. The reasoning inside the companies is probably something along the following lines. They have to find a good balance between keeping their platform safe and not banning too many users. If they don&#39;t ban enough users, some fraudulent users will cause problems for the company. They will see the damages happen and decide to be a bit more strict. Now they get less fraudulent users. The feedback is great. Let&#39;s make things a bit more strict and get even less fraudulent users. Again, the feedback is great. The problem is that each time more and more legitimate users get banned. Since feedback from the support team is ignored, the company happily hums along.</p>
+<p>But what the companies forget is that humans have excellent memory. We all remember situations where one person was unpleasant to us a decade ago. This is not visible in the metrics. Still, will I ever publish a book on Amazon again? Will I happily move more of my compute needs to the cloud? Will someone who has been banned from the Google Cloud Platform use it for their next startup? Will my friend ever love using Microsoft services again? I don&#39;t think so.</p>
+<p>Companies often do not go bankrupt because the customers are complaining loudly. They go bankrupt because the customers disappear silently. As Elie Wiesel said: &quot;The opposite of love is not hate, it is indifference.&quot;</p>
+<p>So, this is a reminder to myself. Be indifferent to software as a service. Use them when necessary, but do not trust them. Where possible, use open source software, own hardware, or self-hosted solutions instead.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

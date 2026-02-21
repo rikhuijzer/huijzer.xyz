@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> On Interface Design - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="On Interface Design" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Some thoughts from me and DeepSeek R1 on designing an API" />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="On Interface Design" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> On Interface Design </h1> 
+   <span class="page-date"> 2025-02-08 </span> 
+</div>
+<div class="franklin-content">
+<p>I have spent quite some hours building open source software. With that, a lot of things have gotten easier over time. For example, setting up tests, CI, documentation, and websites has gotten much easier. However, interface design somehow not. I already asked about it <a href="https://discourse.julialang.org/t/any-guides-on-designing-an-interface/77173">3 years ago</a>. If anything, it has gotten worse since I nowadays realize more how important it is to get the design right. Especially once libraries become more and more used, there is a real cost to introduce breaking changes.</p>
+<p>But today I had a little breakthrough in figuring out <em>why</em> it&#39;s so hard. I realized that designing an interface is about finding a balance between &quot;tightening&quot; everything to provide something useful, but at the same time you want to &quot;loosen&quot; things to be future-proof and flexible. It&#39;s, in my opinion, a weird balance that is hard to grab; like walking on loose sand.</p>
+<p>To see whether my observation made sense, I asked a reasoning model about it. The reason I asked a reasoning model is that they tend to also evaluate the other side of an argument whereas normal LLMs just agree with most statements you make.</p>
+<p>DeepSeek R1 had some great thoughts about interface design. After a bit of back and forth, this was the response:</p>
+<blockquote>
+<p>Great library design is a tricky balance: you need to create something focused and useful now by adding clear structure and smart defaults that help users solve problems quickly, but you also have to leave room for flexibility so it can adapt to future needs you can’t predict. It’s like building guardrails that guide people without trapping them—offering strict patterns for common tasks but allowing escapes or customization for edge cases. This balance feels unstable because what works today might not tomorrow, as technology and user needs change. The best libraries solve today’s problems simply while staying open enough to grow, bend, or connect with the unknown challenges of tomorrow.</p>
+</blockquote>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

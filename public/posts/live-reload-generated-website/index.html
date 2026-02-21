@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Live reloading for any generated website - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Live reloading for any generated website" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="A little trick to generate and live-reload HTML pages." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Live reloading for any generated website" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Live reloading for any generated website </h1> 
+   <span class="page-date"> 2025-01-27 </span> 
+</div>
+<div class="franklin-content">
+<p>When generating a website &#40;typically HTML and CSS files&#41;, it is often useful to have a live reload feature. This means that your browser will automatically reload the page when you make changes to the files via code. For example, say you write some code that generates a plot on a webpage, or that generates some WebAssembly module that is embedded in the page. In the past, I would use tools like webpack or try to manually establish a socket on the server and inject JavaScript in the page.</p>
+<p>I recently found a much simpler solution. Just use Bash together with any server that can serve static files and injects live-reloading like <a href="https://github.com/lomirus/live-server"><code>live-server</code></a>.</p>
+<p>For example, with Rust say you generate a simple HTTP file from <code>main.rs</code> like this:</p>
+<pre><code class="language-rust">fn main&#40;&#41; &#123;
+    let html &#61; r#&quot;
+    &lt;&#33;DOCTYPE html&gt;
+    &lt;html&gt;
+    &lt;body&gt;
+        &lt;h1&gt;Hello, world&#33;&lt;/h1&gt;
+    &lt;/body&gt;
+    &lt;/html&gt;
+    &quot;#;
+
+    std::fs::create_dir_all&#40;&quot;_public&quot;&#41;.unwrap&#40;&#41;;
+
+    let path &#61; std::path::Path::new&#40;&quot;_public/index.html&quot;&#41;;
+    std::fs::write&#40;path, html&#41;.unwrap&#40;&#41;;
+&#125;</code></pre>
+<p>This will create a <code>_public/index.html</code> file when you run <code>cargo run</code>.</p>
+<p>Now you can add a little Bash script to serve the files. Let&#39;s call the file <code>serve.sh</code>:</p>
+<pre><code class="language-bash">#&#33;/usr/bin/env bash
+
+set -e
+
+live-server --port 8080 _public/ &amp; SERVER_PID&#61;&#36;&#33;
+
+# Trap to kill the server when the process exits. Without this, the port
+# will remain in use and a new server will fail to start.
+trap &quot;kill &#36;SERVER_PID&quot; EXIT
+
+cargo watch -x run</code></pre>
+<p>Here, <code>&amp;</code> runs the server in the background. Whenever the script exits, the server process will be killed too allowing you to start a new server.</p>
+<p>Give the script execute permissions:</p>
+<pre><code class="language-bash">chmod &#43;x serve.sh</code></pre>
+<p>and run <code>./serve.sh</code>:</p>
+<pre><code class="language-sh">&#36; ./serve.sh
+&#91;2025-01-27T18:25:19Z INFO  live_server::http_layer::listener&#93; Listening on http://192.168.1.69:8080/
+&#91;2025-01-27T18:25:19Z INFO  live_server::file_layer::watcher&#93; Listening on /Users/rik/git/tmp/_public
+&#91;Running &#39;cargo run -- generate&#39;&#93;
+    Finished &#96;dev&#96; profile &#91;unoptimized &#43; debuginfo&#93; target&#40;s&#41; in 0.01s
+     Running &#96;target/debug/tmp generate&#96;
+&#91;Finished running. Exit status: 0&#93;
+&#91;2025-01-27T18:25:19Z ERROR live_server::file_layer::watcher&#93; SendError&#40;&#40;&#41;&#41;
+&#91;Running &#39;cargo run -- generate&#39;&#93;
+   Compiling tmp v0.1.0 &#40;/Users/rik/git/tmp&#41;
+    Finished &#96;dev&#96; profile &#91;unoptimized &#43; debuginfo&#93; target&#40;s&#41; in 0.16s
+     Running &#96;target/debug/tmp generate&#96;
+&#91;Finished running. Exit status: 0&#93;</code></pre>
+<p>If on the first run you get the following error:</p>
+<pre><code class="language-julia">&#91;2025-01-27T18:26:48Z ERROR live_server::file_layer::watcher&#93; SendError&#40;&#40;&#41;&#41;</code></pre>
+<p>then this can just be ignored. Everything should work fine.</p>
+<p>Now you can make changes to the Rust code and the browser will automatically update the page.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Niceties in the Julia programming language - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Niceties in the Julia programming language" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="A quick walk through some Julia syntax and interesting features." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Niceties in the Julia programming language" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Niceties in the Julia programming language </h1> 
+   <span class="page-date"> 2019-12-03 </span> 
+</div>
+<div class="franklin-content">
+<p>In general I&#39;m quite amazed by the Julia programming language. This blog post aims to be a demonstration of its niceties. The post targets readers who have programming experience. To aid in the rest of the examples we define a struct and its instantiation in a variable.</p>
+<pre><code class="language-julia">struct MyStruct
+  a::Number
+  b::Number
+end
+
+structs &#61; &#91;MyStruct&#40;1, 2&#41;, MyStruct&#40;3, 4&#41;&#93;</code></pre>
+<div class="franklin-toc"><ol><li><a href="#functions_and_methods">Functions and methods</a></li><li><a href="#higher-order_functions">Higher-order functions</a></li><li><a href="#unpacking">Unpacking</a></li><li><a href="#metaprogramming">Metaprogramming</a></li></ol></div>
+<h2 id="functions_and_methods"><a href="#functions_and_methods" class="header-anchor">Functions and methods</a></h2>
+<p>For object-oriented programmers the distinction between a function and a method is simple. If it is inside a class it is a method, otherwise it is a function. In Julia we can use <em>function overloading</em>. This means that the types of the input parameters, or <em>signatures</em>, are used to determine what &lt;thing&gt; should be called. In Julia these &lt;things&gt; are called <em>methods</em>. For example we can define the following methods for the function <code>f</code>.</p>
+<pre><code class="language-julia">julia&gt; f&#40;a, b&#41; &#61; a * b
+f &#40;generic function with 1 method&#41;
+
+julia&gt; f&#40;2, 3&#41;
+6
+
+julia&gt; f&#40;a::Int64, b::String&#41; &#61; string&#40;a&#41; * b
+f &#40;generic function with 2 methods&#41;
+
+julia&gt; f&#40;2, &quot;3&quot;&#41;
+&quot;23&quot;</code></pre>
+<p>One of the distinguishing features of Julia is the <em>multiple dispatch</em>. Basically, multiple dispatch creates an unique function in the LLVM assembly language for each signature.</p>
+<pre><code class="language-julia">julia&gt; @code_llvm f&#40;2, 3&#41;
+define i64 @julia_f_35436&#40;i64, i64&#41; &#123;
+top:
+  &#37;2 &#61; mul i64 &#37;1, &#37;0
+  ret i64 &#37;2
+&#125;
+
+julia&gt; @code_llvm f&#40;2, 3.0&#41;
+define double @julia_f_35477&#40;i64, double&#41; &#123;
+top:
+  &#37;2 &#61; sitofp i64 &#37;0 to double
+  &#37;3 &#61; fmul double &#37;2, &#37;1
+  ret double &#37;3
+&#125;</code></pre>
+<p>Since Julia is dynamically compiled these LLVM functions are compiled only when called for the first time. Pretty neat I would say. However, for most of my use cases I&#39;m spending most of my time on typing code and not waiting for the program to finish. The next section goes into more high-level capabilities.</p>
+<h2 id="higher-order_functions"><a href="#higher-order_functions" class="header-anchor">Higher-order functions</a></h2>
+<p>Higher-order functions either take one or more functions as arguments or return a function. Lets start by defining some functions on the <code>MyStruct</code> struct defined at the start of this post. In the REPL or in Jupyter &#40;IJulia&#41; we can inspect the struct by using the built-in help.</p>
+<pre><code class="language-julia">julia&gt; ?
+help?&gt; MyStruct
+search: MyStruct
+
+  No documentation found.
+
+  Summary
+  ≡≡≡≡≡≡≡≡≡
+
+  struct MyStruct &lt;: Any
+
+  Fields
+  ≡≡≡≡≡≡≡≡≡
+
+  a :: Number
+  b :: Number</code></pre>
+<p>We define the following methods.</p>
+<pre><code class="language-julia">julia&gt; increase_a&#40;ms::MyStruct&#41; &#61; MyStruct&#40;ms.a &#43; 1, ms.b&#41;
+julia&gt; decrease_a&#40;ms::MyStruct&#41; &#61; MyStruct&#40;ms.a - 1, ms.b&#41;</code></pre>
+<p>In object-oriented languages &#40;OOP&#41; we would have defined these methods in some class. When using an IDE you find these methods by typing <code>MyStruct.</code> and wait for the autocomplete to show suggestions. In Julia you can use <code>methodswith</code>.</p>
+<pre><code class="language-julia">julia&gt; methodswith&#40;MyStruct&#41;
+2-element Array&#123;Method,1&#125;:
+  • increase_a&#40;data::MyStruct&#41; in Main at REPL&#91;3&#93;:1
+  • decrease_a&#40;data::MyStruct&#41; in Main at REPL&#91;4&#93;:1</code></pre>
+<p>Well-known higher-order functions are <code>map</code>, <code>filter</code>, and <code>reduce</code>. These are all available. Next we demonstrate only <code>filter</code>, <code>map</code> and some syntactic sugar for <code>map</code>.</p>
+<pre><code class="language-julia">julia&gt; structs
+2-element Array&#123;MyStruct,1&#125;:
+ MyStruct&#40;1, 2&#41;
+ MyStruct&#40;3, 4&#41;
+
+julia&gt; filter&#40;s -&gt; s.a &#61;&#61; 1, structs&#41;
+1-element Array&#123;MyStruct,1&#125;:
+ MyStruct&#40;1, 2&#41;
+
+julia&gt; map&#40;increase_a, structs&#41;
+2-element Array&#123;MyStruct,1&#125;:
+ MyStruct&#40;2, 2&#41;
+ MyStruct&#40;4, 4&#41;
+
+julia&gt; increase_a.&#40;structs&#41;
+2-element Array&#123;MyStruct,1&#125;:
+ MyStruct&#40;2, 2&#41;
+ MyStruct&#40;4, 4&#41;
+
+julia&gt; increase_a.&#40;increase_a.&#40;structs&#41;&#41;
+2-element Array&#123;MyStruct,1&#125;:
+ MyStruct&#40;3, 2&#41;
+ MyStruct&#40;5, 4&#41;</code></pre>
+<p>Another use of applying functions is when you want to define conversions on a dataset. Suppose we want to be able to specify one or more conversions and apply this to the complete dataset. For example, lets define two simple functions and put them in an array:</p>
+<pre><code class="language-julia">julia&gt; double&#40;x&#41; &#61; 2x
+double &#40;generic function with 1 method&#41;
+
+julia&gt; add&#40;x&#41; &#61; x &#43; 1
+add &#40;generic function with 1 method&#41;
+
+julia&gt; conversions &#61; &#91;double, add&#93;
+2-element Array&#123;Function,1&#125;:
+  double
+  add</code></pre>
+<p>We want to be able to apply such an array of type <code>Array&#123;Function,1&#125;</code> to a dataset element. Using <code>map</code> over the function elements is not a solution, since we want the input to be an array:</p>
+<pre><code class="language-julia">julia&gt; input &#61; &#91;3, 4&#93;
+2-element Array&#123;Int64,1&#125;:
+  3
+  4</code></pre>
+<p>We could use a <code>for</code> loop, which would look something like</p>
+<pre><code class="language-julia">julia&gt; for i in input
+    result &#61; i
+    for func in conversions
+      result &#61; func&#40;result&#41;
+    end
+    println&#40;result&#41;
+  end</code></pre>
+<p>&#40;and prints the correct answers only in a Notebook and not on the REPL&#41;. This is way too long, especially if we would include the code to put the elements in an output array.</p>
+<p>A much cleaner way is to apply the function composition operator &#40;<code>∘</code>&#41; to chain the functions in one new function. Since the function composition is a binary operator we can use reduce to call it on more than one pair.</p>
+<pre><code class="language-julia">julia&gt; map&#40;x -&gt; reduce&#40;∘, conversions&#41;&#40;x&#41;, input&#41;
+2-element Array&#123;Int64,1&#125;:
+  8
+  10</code></pre>
+<p>&#40;again, works only in a Notebook.&#41; Note that the functions are applied in reverse order.</p>
+<h2 id="unpacking"><a href="#unpacking" class="header-anchor">Unpacking</a></h2>
+<p>Just like in Python, there is syntax to unpack collections. For example, lets consider a tuple:</p>
+<pre><code class="language-julia">julia&gt; c &#61; &#40;1, 2&#41;
+&#40;1, 2&#41;
+
+julia&gt; l &#61; &#91;c...&#93;
+2-element Array&#123;Int64,1&#125;:
+ 1
+ 2</code></pre>
+<p>This list can also be unpacked:</p>
+<pre><code class="language-julia">julia&gt; &#91;9, l...&#93;
+3-element Array&#123;Int64,1&#125;:
+ 9
+ 1
+ 2</code></pre>
+<p>The most useful applications are usually when passing parameters to functions.</p>
+<pre><code class="language-julia">julia&gt; z&#40;a, b, c&#41; &#61; &quot;&#36;a | &#36;b | &#36;c&quot;
+z &#40;generic function with 1 method&#41;
+
+julia&gt; z&#40;c..., 4&#41;
+&quot;1 | 2 | 4&quot;</code></pre>
+<p>For named tuples, the names are ignored.</p>
+<pre><code class="language-julia">julia&gt; z&#40;&#40;b &#61; 1, d &#61; 2&#41;..., 3&#41;
+&quot;1 | 2 | 3&quot;</code></pre>
+<h2 id="metaprogramming"><a href="#metaprogramming" class="header-anchor">Metaprogramming</a></h2>
+<p>A simple example of metaprogramming in Julia are macros. For example, we can use <code>show</code> to print a variable name and its value:</p>
+<pre><code class="language-julia">julia&gt; x &#61; 1
+x &#61; 1
+
+julia&gt; @show x
+x &#61; 1
+1</code></pre>
+<p>Usually source code is written in one file and tests in another. Suppose you want to write your tests right below the functions. Ideally we only run the tests on request and not each time we import the code. This can be realised by using macros and apply some tinkering. A new <code>DTest</code> module could look as follows. <code>DTest</code> here can be read as delayed test.</p>
+<pre><code class="language-julia">module DTest
+
+all_dtests &#61; Expr&#91;&#93;
+export all_dtests
+
+macro dtests&#40;ex&#41;
+  push&#33;&#40;all_dtests, ex&#41;
+  esc&#40;:&#40;dtest&#40;&#41; &#61; foreach&#40;eval, all_dtests&#41;&#41;&#41;
+end
+export @dtests
+
+end # module</code></pre>
+<p>This module basically adds an <code>@dtest</code> macro which can be used from some client. When the client code looks like</p>
+<pre><code class="language-julia">@dtest
+  @test 1 &#61;&#61; 2
+end</code></pre>
+<p>then the expression <code>@test 1 &#61;&#61; 2</code> is put in the <code>all_dtests</code> array and the function <code>dtest&#40;&#41; &#61; foreach&#40;eval, all_dtests&#41;</code> is defined. We use <code>esc</code> to ensure that the function is evaluated in the context of <code>Client</code> and not in the context of <code>DTest</code> &#40;so that <code>f</code> and <code>g</code> are available&#41;.</p>
+<p>To demonstrate a full example lets define a new client module.</p>
+<pre><code class="language-julia">module Client
+
+include&#40;&quot;DTest.jl&quot;&#41;
+using .DTest
+
+g&#40;x&#41; &#61; 3x
+@dtests begin
+  @testset &quot;g&quot; begin
+    @test g&#40;2&#41; &#61;&#61; 6
+  end
+end
+
+f&#40;x&#41; &#61; 2x
+export f
+@dtests begin
+  @testset &quot;f&quot; begin
+    @test f&#40;3&#41; &#61;&#61; 6
+  end
+end
+
+end # module</code></pre>
+<p>We can use and test the module as follows.</p>
+<pre><code class="language-julia">julia&gt; include&#40;&quot;Client.jl&quot;&#41;
+
+julia&gt; using .Client
+
+julia&gt; f&#40;3&#41;
+6
+
+julia&gt; Client.dtest&#40;&#41;
+Test Summary: | Pass  Total
+g             |    1      1
+Test Summary: | Pass  Total
+f             |    1      1</code></pre>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

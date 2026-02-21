@@ -1,0 +1,286 @@
+### A Pluto.jl notebook ###
+# v0.17.3
+
+using Markdown
+using InteractiveUtils
+
+# ╔═╡ e173ab96-543a-11ec-1bf6-a369b1eb3e1d
+begin
+	using Bijectors: OrderedBijector, ordered, transformed
+	using CairoMakie
+	using DataFrames
+	using StableRNGs: StableRNG
+	using Turing
+end
+
+# ╔═╡ 6d43d6a8-049e-413e-99fd-cbede2b8bdda
+md"""
+In the previous post, I looked at a very simple [latent analysis](/posts/latent) analysis.
+In our research, we have a binary outcome for the data and we would like to incorporate this information into the latent profile analysis.
+Because the outcome is binary (two classes), this is called a _latent class regression_ (Magidson & Vermunt, 2004).
+
+
+This post aims to simulate data and fit a the model to figure out how it works and how it can be implemented.
+Also, it simulates whether we have enough data for the model.
+"""
+
+# ╔═╡ a7a06117-2ed3-40a0-9cf5-4fd6a26abad5
+md"""
+## Generating data
+
+Say that we have five variables (A, B, ..., E) for about 200 individuals.
+By using these variables, we want to predict whether someone will fail or pass.
+Also, say that it's possible that the data contains multiple latent normal distributions.
+Specifically, there are 1 to 4 normal distributions per variable.
+The limit here is 4 because interpreting the meaning of 5 or more distributions wouldn't be feasible with the low number of observations in our dataset.
+For simplicity, we assume that the number of latent distributions is the same for each variable.
+
+To make fitting a Bayesian model easier, we also assume that the data is centered and standardized:
+"""
+
+# ╔═╡ bfbb9efe-ec29-4808-8d34-692ec6519dfe
+df = let
+	n = 200
+	I = 1:n
+	rng = StableRNG(1)
+	A = rand(rng, Normal(0, 0.2), n)
+
+	# The number of latent groups is the same for all variables.
+	prior = [0.2, 0.5, 0.3]
+
+	components = [
+		Normal(-0.3, 0.2),
+		Normal(0.2, 0.2),
+		Normal(0.4, 0.2)
+	]
+	dist = MixtureModel(components, prior)
+	B = rand(rng, dist, n)
+
+	components = [
+		Normal(-0.3, 0.2),
+		Normal(0, 0.2),
+		Normal(0.3, 0.1)
+	]
+	dist = MixtureModel(components, prior)
+	C = rand(rng, dist, n)
+
+	D = rand(rng, Normal(0, 0.2), n)
+	E = rand(rng, Normal(0, 0.2), n)
+
+	Y = B .+ rand(rng, Normal(0, 0.2), n)
+	
+	DataFrame(; A, B, C, D, E, Y)
+end
+
+# ╔═╡ aaff0b76-73a9-408d-9dc6-b5063b596c4b
+# hideall
+variables = [:A, :B, :C, :D, :E, :Y];
+
+# ╔═╡ 55d3d6b8-2d38-4874-a057-45128aa84abc
+# hideall
+let
+	resolution = (800, 1_000)
+	fig = Figure(; resolution)
+	axs = [Axis(fig[i, 1]; ylabel=string(v)) for (i, v) in enumerate(variables)]
+
+	for (ax, v) in zip(axs, variables)
+		density!(ax, df[:, v])
+	end
+	linkxaxes!(axs...)
+	fig
+end
+
+# ╔═╡ d4998629-ca5a-4880-888e-403636167bfe
+md"""
+Note that $Y = B + \epsilon$, where $\epsilon$ means noise.
+This should be an easy relation for the model to retreive from the data.
+Specifically, if we fit a linear model, the model should report that only the coefficient for B is nonzero and the distribution of B should be the same as what is specified above.
+"""
+
+# ╔═╡ e2b718eb-b0bf-45ac-83b5-6361b73d435c
+md"""
+## Model fitting
+
+Let's first fit a simple linear regression to get a bit of an idea of how things are going.
+Here, the sampler is variational inference (VI) because it's the better choice for [latent models](/posts/latent/).
+"""
+
+# ╔═╡ 54b1b733-4df1-4b3c-bf5d-bb75f12f4b60
+@model function linear_regression(X, y)
+	σ = 0.2
+	intercept ~ Normal(0, σ)
+    A ~ Normal(0, σ)
+	B ~ Normal(0, σ)
+	C ~ Normal(0, σ)
+	D ~ Normal(0, σ)
+	E ~ Normal(0, σ)
+
+	m = @. intercept + A * X.A + B * X.B + C * X.C + D * X.D + E * X.E
+	y ~ MvNormal(m, σ)
+end;
+
+# ╔═╡ a161bdd8-e6dd-49c0-89e2-7a456f029313
+linear_model = linear_regression(df, df.Y);
+
+# ╔═╡ 1d91fe7b-3106-4263-98b6-2b07d2a86939
+function sample_vi(model; n_chains=3, n_samples=1_000)
+	chn = sample(model, Prior(), 3)
+	paramnames = names(chn, :parameters)
+
+	dfs = Vector{DataFrame}(undef, n_chains)
+	Threads.@threads for i in 1:n_chains
+        q = vi(model, ADVI(10, 1_000))
+        M = rand(q, n_samples)::Matrix{Float64}
+        df = DataFrame(transpose(M), paramnames)
+        df[!, :chain] = fill(i, nrow(df))
+        df[!, :iteration] = 1:nrow(df)
+        dfs[i] = df
+    end
+	df = vcat(dfs...)
+	select!(df, :chain, :iteration, :)
+	return df
+end;
+
+# ╔═╡ 9891714c-817d-44a4-915d-574534a10ad1
+linear_model_posterior = sample_vi(linear_model);
+
+# ╔═╡ e397373c-c687-437c-abc6-a85e783e1e2f
+md"""
+The output below looks as expected.
+The coefficient for B is high and the intercept and other coefficients are near zero.
+"""
+
+# ╔═╡ 566e4617-5a82-4264-a42a-2737ba17a65c
+k = Categorical(fill(0.25, 4));
+
+# ╔═╡ cf05fbaa-84cd-496b-b0e9-62cbc2a7ec86
+rand(k, 20)
+
+# ╔═╡ ad57fe63-7b77-4b2a-8656-327a1b1f90fa
+inv_ordered(X::Vector) = inv(Bijectors.OrderedBijector())(X);
+
+# ╔═╡ 31f742de-b2a5-4146-809c-02227a1dcf2c
+M = inv_ordered([25, 25.01, 25.02])
+
+# ╔═╡ 69c06d7a-2e8f-44e8-a12d-5f0bc849fb49
+@model function latent_B_regression(X, y)
+	k = 3 # ~ Categorical(fill(0.25, 4))
+	w ~ Dirichlet(k, 1)
+
+	σ = 0.2
+	intercept ~ Normal(0, σ)
+
+	μ ~ ordered(arraydist([Normal(m, σ) for m in M]))
+	# μ ~ filldist(Normal(0, 0.2), k)
+	# params = fill((0, σ), k)
+	# @show μ
+	B ~ MixtureModel(Normal, μ, w)
+
+	m = @. intercept + B * X.B
+	y = MvNormal(m, σ)
+end;
+
+# ╔═╡ 3550c741-3c4c-4ec5-9256-a9643a361244
+B_model = latent_B_regression(df, df.Y);
+
+# ╔═╡ d6f0353b-9092-4bdc-8a00-f70f10d3e0e2
+t = arraydist([Normal(0, 0.2) for _ in 1:3])
+
+# ╔═╡ be4c2afe-cc11-4354-ace6-90e1a9f86d55
+Bijectors.ordered(t)
+
+# ╔═╡ 0a60023c-df20-4be6-aa51-d227fc6fdfaa
+B_model_posterior = sample_vi(B_model; n_samples=200);
+
+# ╔═╡ 11ddc353-e29a-4f30-ae35-1e16422c98ef
+md"""
+## References
+
+Boone, W. J., Staver, J. R., & Yale, M. S. (2014).
+Rasch analysis in the human sciences.
+Springer Science & Business Media.
+<https://link.springer.com/book/10.1007/978-94-007-6857-4>.
+
+Magidson, J., & Vermunt, J. K. (2004).
+Latent class models.
+The Sage handbook of quantitative methodology for the social sciences, 175-198.
+"""
+
+# ╔═╡ c5e2c57b-8495-4658-aba5-ecefe8ff1e86
+# hideall
+function plot_chains(chns; density_func=density!)
+	params = if chns isa DataFrame # vi
+		names(chns[:, 3:end])
+	else # mcmc
+		names(chns, :parameters)
+	end
+	df = DataFrame(chns)
+	n_chains = length(unique(df.chain))
+	n_samples = nrow(df) / n_chains
+	df[!, :chain] = string.(df.chain)
+	resolution = (900, 1200)
+	fig = Figure(; resolution)
+
+	values_axs = [Axis(fig[i, 1]; ylabel=string(c)) for (i, c) in enumerate(params)]
+	for (ax, col) in zip(values_axs, params)
+		for i in 1:n_chains
+			chain = string(i)
+			values = filter(:chain => ==(chain), df)[:, col]
+			lines!(ax, 1:n_samples, values; label=chain)
+		end
+	end
+	values_axs[end].xlabel = "Iteration"
+
+	density_axs = [Axis(fig[i, 2]; ylabel=string(c)) for (i, c) in enumerate(params)]
+	for (ax, col) in zip(density_axs, params)
+		for i in 1:n_chains
+			chain = string(i)
+			values = filter(:chain => ==(chain), df)[:, col]
+			density_func(ax, values; label=chain)
+		end
+	end
+	density_axs[end].xlabel = "Parameter estimate"
+	linkxaxes!(density_axs...)
+	hideydecorations!.(density_axs)
+
+	return fig
+end;
+
+# ╔═╡ 18c30736-e704-430c-bb75-e296020e64cf
+# hideall
+plot_chains(linear_model_posterior)
+
+# ╔═╡ d2b1c80e-d3f5-41f8-994e-3eee2e0c290d
+# hideall
+plot_chains(B_model_posterior)
+
+
+# ╔═╡ Cell order:
+# ╠═e173ab96-543a-11ec-1bf6-a369b1eb3e1d
+# ╠═6d43d6a8-049e-413e-99fd-cbede2b8bdda
+# ╠═a7a06117-2ed3-40a0-9cf5-4fd6a26abad5
+# ╠═bfbb9efe-ec29-4808-8d34-692ec6519dfe
+# ╠═aaff0b76-73a9-408d-9dc6-b5063b596c4b
+# ╠═55d3d6b8-2d38-4874-a057-45128aa84abc
+# ╠═d4998629-ca5a-4880-888e-403636167bfe
+# ╠═e2b718eb-b0bf-45ac-83b5-6361b73d435c
+# ╠═54b1b733-4df1-4b3c-bf5d-bb75f12f4b60
+# ╠═a161bdd8-e6dd-49c0-89e2-7a456f029313
+# ╠═1d91fe7b-3106-4263-98b6-2b07d2a86939
+# ╠═9891714c-817d-44a4-915d-574534a10ad1
+# ╠═e397373c-c687-437c-abc6-a85e783e1e2f
+# ╠═18c30736-e704-430c-bb75-e296020e64cf
+# ╠═566e4617-5a82-4264-a42a-2737ba17a65c
+# ╠═cf05fbaa-84cd-496b-b0e9-62cbc2a7ec86
+# ╠═ad57fe63-7b77-4b2a-8656-327a1b1f90fa
+# ╠═31f742de-b2a5-4146-809c-02227a1dcf2c
+# ╠═69c06d7a-2e8f-44e8-a12d-5f0bc849fb49
+# ╠═3550c741-3c4c-4ec5-9256-a9643a361244
+# ╠═d6f0353b-9092-4bdc-8a00-f70f10d3e0e2
+# ╠═be4c2afe-cc11-4354-ace6-90e1a9f86d55
+# ╠═0a60023c-df20-4be6-aa51-d227fc6fdfaa
+# ╠═d2b1c80e-d3f5-41f8-994e-3eee2e0c290d
+# ╠═11ddc353-e29a-4f30-ae35-1e16422c98ef
+# ╠═c5e2c57b-8495-4658-aba5-ecefe8ff1e86
+
+

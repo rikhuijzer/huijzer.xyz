@@ -1,0 +1,458 @@
+:root {
+  --accent: hsl(212, 91%, 60%);
+  --main: hsl(0, 0%, 10%);
+  --header: hsl(212, 90%, 18%); 
+  --background: hsl(0, 0%, 100%);
+  --block-background: hsl(0, 0%, 96%);
+  --output-background: hsl(0, 0%, 96%);
+  --width: 80ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --main: hsl(0, 0%, 94%);
+    --header: hsl(0, 0%, 94%);
+    --background: hsl(199, 10%, 22%);
+    --block-background: hsl(0, 0%, 8%);
+    --output-background: hsl(0, 0%, 8%);
+  }
+}
+
+html {
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  color: var(--main);
+  font-size : 16px;
+}
+
+@media (min-width: 480px) {
+  html {
+    font-size: 18px;
+  }
+}
+
+
+/* ==================================================================
+    BASIC GRID FOR PROFILE PIC
+================================================================== */
+
+.franklin-content .row {
+  display: block; }
+
+.franklin-content .left {
+  float: left;
+  margin-right: 15px; }
+
+.franklin-content .right {
+    float: right; }
+
+.franklin-content .container img {
+    width: auto;
+    padding-left: 0;
+    border-radius: 10px;
+}
+
+.franklin-content .footnote {
+    position: relative;
+    top: -0.5em;
+    font-size: 70%;
+}
+
+figcaption {
+  font-size: 0.8em;
+  font-style: italic;
+}
+
+/* ==================================================================
+    FOOT / COPYRIGHT
+================================================================== */
+
+.franklin-content .page-foot a {
+    text-decoration: none;
+    color: var(--accent);
+    text-decoration: underline; }
+
+.page-foot {
+    font-size: 80%;
+    font-family: Arial, serif;
+    color: #a6a2a0;
+    text-align: center;
+    margin-top: 6em;
+    border-top: 1px solid lightgrey;
+    padding-top: 2em;
+    margin-bottom: 4em; }
+
+/* ==================================================================
+    TEXT GEOMETRY
+================================================================== */
+
+.franklin-content {
+    position: relative;
+    /* Only noticable on tablets. */
+    padding-left: 8%;
+    padding-right: 8%;
+    line-height: 1.5em;
+}
+
+/* on wide screens, fix content width to a max value */
+@media (min-width: 940px) {
+    .franklin-content {
+        width: var(--width);
+        margin-left: auto;
+        margin-right: auto; }
+    }
+
+@media (max-width: 480px) {
+    .franklin-content {
+        padding-left: 1%;
+        padding-right: 1%;
+    }
+}
+
+/* ==================================================================
+    TITLES
+================================================================== */
+
+.franklin-content h1 { font-size: 29px; color: var(--header); }
+.franklin-content h2 { font-size: 27px; color: var(--header); }
+.franklin-content h3 { font-size: 25px; color: var(--header); }
+
+.franklin-content h1, h2, h3, h4, h5, h6 {
+    color: var(--main);
+    text-align: left; 
+}
+
+.franklin-content h1 {
+    color: var(--header);
+    padding-bottom: 0.5em;
+    border-bottom: 3px double lightgrey;
+    line-height: 1.2em;
+    margin-top: 1.5em;
+    margin-bottom: 1em; }
+
+.franklin-content h2 {
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid lightgrey;
+    margin-top: 2em;
+    margin-bottom: 1em; }
+
+.franklin-content h1 a { color: inherit; }
+.franklin-content h1 a:hover {text-decoration: none;}
+.franklin-content h2 a { color: inherit; }
+.franklin-content h2 a:hover {text-decoration: none;}
+.franklin-content h3 a { color: inherit; }
+.franklin-content h3 a:hover {text-decoration: none;}
+.franklin-content h4 a { color: inherit; }
+.franklin-content h4 a:hover {text-decoration: none;}
+.franklin-content h5 a { color: inherit; }
+.franklin-content h5 a:hover {text-decoration: none;}
+.franklin-content h6 a { color: inherit; }
+.franklin-content h6 a:hover {text-decoration: none;}
+
+.franklin-content table {
+  margin-top: 1.5em;
+  margin-left: auto;
+  margin-right: auto;
+  border-collapse: collapse;
+  text-align: center;
+}
+
+.franklin-content th, td {
+    font-size: 14px;
+    padding: 10px;
+}
+
+.franklin-content th, td, tr {
+  border-left: none !important;
+  border-right: none !important;
+}
+
+.franklin-content blockquote {
+    background: var(--background);
+    border-left: 2px solid #a8a8a8;
+    margin: 0.8em 10px;
+    padding: 0.5em 15px;
+    font-style: italic;}
+
+.franklin-content blockquote p {
+    display: inline; }
+
+.franklin-content blockquote ul {
+  margin: 0;
+}
+
+.franklin-toc {
+  margin: 1.5rem 0;
+}
+
+.franklin-toc li {
+  margin: 0.6rem 0; 
+} 
+
+/* ==================================================================
+    GENERAL FORMATTING
+================================================================== */
+
+/* spacing between bullet points */
+.franklin-content li p {
+    margin-top: 0.3em;
+    margin: 0.3rem 0; }
+
+.franklin-content a {
+    color: var(--accent);
+    text-decoration: none; }
+
+.franklin-content a:hover {
+    text-decoration: underline; }
+
+/* ==================================================================
+    HYPERREFS AND FOOTNOTES
+================================================================== */
+
+.franklin-content .eqref a  { 
+  color: var(--accent);
+}
+.franklin-content .bibref a { 
+  color: var(--accent);
+}
+
+.franklin-content sup {
+    font-size: 70%;
+    vertical-align: super;
+    line-height: 0; }
+
+.franklin-content table.fndef  {
+  margin: 0;
+  margin-bottom: 10px;}
+.franklin-content .fndef tr, td {
+    padding: 0;
+    border: 0;
+  }
+.franklin-content .fndef tr {
+    border-left: 2px solid lightgray;
+    }
+.franklin-content .fndef td.fndef-backref {
+    vertical-align: top;
+    font-size: 70%;
+    padding-left: 5px;}
+.franklin-content .fndef td.fndef-content {
+    text-align: left;
+    font-size: 80%;
+    padding-left: 10px;
+    width: 100%;}
+
+/* ==================================================================
+    IMAGES in CONTENT
+================================================================== */
+
+.franklin-content img {
+  width: 100%;
+  height: auto;
+}
+
+.franklin-content .img-small img {
+  width: 50%;
+  text-align: center;
+  padding-left: 20%;
+}
+
+/* ==================================================================
+    KATEX
+================================================================== */
+
+body { counter-reset: eqnum; }
+
+.katex { font-size: 1em !important; }
+
+.katex-display .katex {
+  /* overwrite KaTeX settings. */
+  display: inline-block;
+  /* Allow display equations to wrap on small screens. */
+  white-space: normal; }
+
+.katex-display::after {
+    counter-increment: eqnum;
+    content: "(" counter(eqnum) ")";
+    position: relative;
+    float: right;
+    padding-right: 5px; }
+
+/* ==================================================================
+    CODE & HIGHLIGHT.JS
+================================================================== */
+
+code {
+  font-family: JuliaMono-Regular, SFMono-Regular, DejaVu Sans Mono, monospace;
+  font-variant-ligatures: none;
+  background-color: var(--block-background) !important;
+  padding: 0.3em;
+  border-radius: 4px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* Don't set this for code in general because that would put inline code on a newline. */
+pre code {
+  display: block;
+  overflow: auto;
+  border-radius: 4px;
+  background-color: var(--block-background);
+  line-height: 1.42em;
+  padding: 1em;
+  white-space: pre;
+}
+
+.hljs {
+  line-height: 1.42em;
+  border-radius: 10px;
+}
+
+.hljs-meta, .hljs-metas, .hljs-metap { font-weight: bold; }
+
+.hljs-metas { color: red; }
+
+.hljs-metap { color: rgb(51, 131, 231); }
+
+.code-output {
+  font-family: JuliaMono-Regular, SFMono-Regular, DejaVu Sans Mono, monospace;
+  font-variant-ligatures: none;
+  /* Without this, the output of BenchmarkTools looks weird. */
+  line-height: 114%;
+  background: var(--output-background);
+  border: 1px dashed #dbdbdb;
+  padding: 0.3em;
+  border-radius: 10px;
+  font-size: 14px;
+  display: block;
+  overflow: auto;
+  white-space: pre;
+  word-wrap: normal;
+}
+
+/* ==================================================================
+    BOXES
+================================================================== */
+
+.franklin-content .colbox-blue {
+    background-color: #EEF3F5;
+    padding-top: 5px;
+    padding-right: 10px;
+    padding-left: 10px;
+    padding-bottom: 5px;
+    margin-left: 5px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    border-radius: 0 10px 10px 0;
+    border-left: 5px solid #4C9CF1; }
+
+/* ==================================================================
+    BLOG POSTS (source: abhishalya)
+================================================================== */
+
+ul.blog-posts {
+  list-style-type: none;
+  padding: unset;
+}
+
+ul.blog-posts li {
+  display: flex;
+}
+
+ul.blog-posts li span {
+  flex: 0 0 130px;
+}
+
+ul.blog-posts li a:visited {
+  color: #8b6fcb;
+}
+
+/* ==================================================================
+    Various additions to the default theme
+================================================================== */
+
+.description {
+  margin-top: 4px;
+  margin-bottom: 24px;
+}
+
+.avatar-image {
+  width: 8rem !important;
+  heigth: auto;
+  border-radius: 50%; 
+}
+
+.tikz img {
+  /* centering */
+  display: block;
+  margin: auto;
+}
+
+.page-title {
+  margin-bottom: 0.4rem !important;
+}
+
+.page-date {
+  display: block;
+  font-style: italic;
+  margin-bottom: 40px;
+}
+
+#plutouiterminal {
+  font-family: JuliaMono-Regular, SFMono-Regular, DejaVu Sans Mono, monospace;
+  font-variant-ligatures: none;
+  /* Without this, the output of BenchmarkTools looks weird. */
+  line-height: 114%;
+  max-height: 300px;
+  overflow: auto;
+  white-space: pre;
+  color: white;
+  background-color: black;
+  border-radius: 6px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  padding: 15px;
+  display: block;
+  font-size: 14px;
+}
+
+/* ==================================================================
+    COPY BUTTON
+================================================================== */
+
+pre {
+	position: relative;
+  background-color: var(--block-background);
+  border-radius: 4px;
+}
+
+.copy-button {
+	cursor: pointer;
+	border: 0;
+	font-size: 10px;
+	text-transform: uppercase;
+	font-weight: 500;
+  margin: 8px;
+	padding: 12px;
+	color: #795548;
+  background: url('/assets/copy.svg') no-repeat;
+  background-size: 24px;
+	background-color: transparent;
+	position: absolute;
+	top: 0;
+	right: 0;
+}
+
+.copy-button:hover,
+.copy-button:focus,
+.copy-button:active {
+	outline: 0;
+	background-color: #eee9e6;
+}
+
+.manifest-versions {
+  margin-top: 6em;
+}
+
+.manifest-versions, .notebook-link {
+  font-size: 75%;
+}

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> An old solution to modern OpenAI GPTs problems - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="An old solution to modern OpenAI GPTs problems" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Running arbitrary programs inside a GPT." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="An old solution to modern OpenAI GPTs problems" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> An old solution to modern OpenAI GPTs problems </h1> 
+   <span class="page-date"> 2024-01-28 </span> 
+</div>
+<div class="franklin-content">
+<p>Ever since the introduction of ChatGPT, OpenAI has had a compute shortage. This might explain their current focus on <em>GPTs</em>, formerly known as <em>Plugins</em>. Simply put, you can see GPTs as a way to wrap around the base language model. In a wrapping, you can give some instructions &#40;a prompt&#41;, 20 files, and enable <em>Web Browsing</em>, <em>DALL·E Image Generation</em>, and/or <em>Code Interpreter</em>. Also, you can define an <em>Action</em>, which allows the GPT to call an API from your own server.</p>
+<p>At first sight the possibilities seem limited for developers. The code interpreter will only run Python code inside their sandbox. Furthermore, the interpreter has no internet access, so installing extra tools is not possible. You could spin up your own server and interact via the Actions &#40;API calls&#41;, but that has some latency and requires setting up a server. Without spinning up a server, you could define some CLI script in Python and write in the instruction how to interact with that Python script. Unfortunately, this does limit the capabilities. Not all Python packages are installed in the sandbox and there is only so much that can be expressed in the instruction.</p>
+<p>Surprisingly, we&#39;re actually not limited to the instruction for expressing code. You can upload Python files under &quot;Knowledge&quot;. From the description, it looks like these files are only used for Retrieval-Augmented Generation &#40;RAG&#41;. This is not true. The code interpreter will happily run those files too.</p>
+<p>For example, create a Python script that raises the first input argument to the second power &#40;<code>x^2</code>&#41;:</p>
+<pre><code class="language-python">import sys
+
+def pow&#40;x&#41;:
+    return x**x
+
+if __name__ &#61;&#61; &#39;__main__&#39;:
+    x &#61; sys.argv&#91;1&#93;
+    x &#61; int&#40;x&#41;
+    print&#40;pow&#40;x&#41;&#41;</code></pre>
+<p>and upload this file as <code>my_script.py</code> below &quot;Knowledge&quot;. Next, in the instruction, write something like this:</p>
+<pre><code class="language-julia">Run the number that the user gives into my_script.py
+
+&#96;&#96;&#96;python
+&#33;python my_script &lt;USER INPUT&gt;
+&#96;&#96;&#96;</code></pre>
+<p>This exclamation mark syntax allows us to run shell commands inside Python. When I then said &quot;my number is 12&quot; to the GPT, it responded with &quot;The output of the script with the number 12 is 144.&quot; And there was a blue link <code>&#91;&gt;_&#93;</code> showing that ChatGPT actually ran my code &#40;and didn&#39;t guess it from reading the code&#41;. This is already quite expressive.</p>
+<p>But it still is a bit restrictive. We&#39;re still restricted to the preinstalled Python packages. Or so I thought. We can run binaries too.</p>
+<p>To do so, just upload an x86 binary and teach the GPT how to interact with it. For example, I&#39;ve uploaded a x86 binary &#40;specifically, <code>typst</code>&#41; and added the following instruction:</p>
+<pre><code class="language-julia">Run typst via the code interpreter:
+
+&#96;&#96;&#96;python
+&#33;chmod &#43;x /mnt/data/typst
+&#33;cd /mnt/data &amp;&amp; ./typst --help
+&#96;&#96;&#96;</code></pre>
+<p>Then I just typed &quot;run&quot; as an user, and the GPT printed the <code>--help</code> instructions from the binary.</p>
+<p>What this allows is making binaries available to users via the GPT store. The interaction with these binaries can then be described in the instruction, just like how API instructions are provided. For example, this allows making a CLI tool in Rust and then making the interaction with the tool very easy for users. You can just share a public GPT link. For example, here is a <a href="https://chat.openai.com/g/g-SwNCyZyf6-professional-pdfs">link to my typst-based GPT</a>. The tool can even take user inputs such as PDFs or images and process these. All this without the data having to leave the server. You don&#39;t even have to run your own server. Furthermore, users can interact with the binary via text or speech. Pretty cool if you ask me&#33;</p>
+<p>Unfortunately, although I&#39;m quite optimistic about the possibilities, I do have to mention some downsides too. A downside is that the sandbox takes about 10 seconds to run. The Python script takes less than a second, so this must be the time it takes to spawn a sandbox. Also, what was not nice is that GPT-4 is still limited even for paying users. I had to pause development a few times because I was making too many requests. Finally, there is the half-baked compliance with the European privacy regulations. GPTs and voice interactions are only available when &quot;Chat History &amp; Training&quot; is enabled. If I would upload some personal data or sensitive data from our research in a GPT, then this data will end up in the training data&#33; Currently, the only solution is to switch to ChatGPT Teams which is a few dollars more expensive than premium &#40;this is okay&#41;, but only available for a minimum of 2 users &#40;more difficult&#41;.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

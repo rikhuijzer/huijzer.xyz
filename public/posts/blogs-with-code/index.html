@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Running code in blog posts is probably a bad idea - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Running code in blog posts is probably a bad idea" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Something I learned the hard way" />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Running code in blog posts is probably a bad idea" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Running code in blog posts is probably a bad idea </h1> 
+   <span class="page-date"> 2025-01-25 </span> 
+</div>
+<div class="franklin-content">
+<p>One of my favorite things to do is to automate as much as possible. So when I started writing blog posts, I thought it would be a good idea to run the code in my blog posts automatically. For example, I would add blogs with cool <a href="/posts/latent/">code and visualizations</a> and then run this code upon each push to the repository via CI. I even made a package for it called <a href="https://github.com/rikhuijzer/PlutoStaticHTML.jl">PlutoStaticHTML.jl</a>.</p>
+<p>What PlutoStaticHTML.jl allows you to do is to write your blog posts in Pluto notebooks &#40;Pluto.jl is like Jupyter notebooks but for the Julia language&#41;. Then, you can setup CI such that the code will be executed each time you push to the repository and the output will be embedded in the blog post.</p>
+<p>Like this, you write this Julia code:</p>
+<pre><code class="language-julia">function f&#40;x&#41;
+    x &#43; x
+end
+
+f&#40;1&#41;</code></pre>
+<p>and get the following output:</p>
+<pre><code class="language-julia">2</code></pre>
+<p>Now you could copy-paste this output, but that&#39;s not very convenient. Automating this is a great idea, right?</p>
+<p>Well, in theory it is but in practice it&#39;s probably a bad idea. The problem is that blog posts, like most writing, are ephemeral. Meaning that most blog posts will slowly become more and more outdated and irrelevant &#40;and that&#39;s okay; even academic papers have this problem&#41;. However, if you decide to run the code in your blog posts automatically, then you are forced to maintain the code. Even worse, breaking changes might lead you to be unable to push new changes to your blog without fixing the code first.</p>
+<p>It&#39;s probably not worth it. Just write the code, copy-paste the output and call it a day. This way, you still have the code available to you and can still read it when you need it later. And if you don&#39;t read it, then that&#39;s no problem since you&#39;re not maintaining it anyway.</p>
+<p>As long as your blog clearly mentions the data of publication, then people will probably not mind outdated code either.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

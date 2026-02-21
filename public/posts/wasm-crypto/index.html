@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Encrypting and decrypting a secret with wasm_bindgen - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Encrypting and decrypting a secret with wasm_bindgen" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Using AES-GCM using the Web Crypto (subtle.crypto) API." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Encrypting and decrypting a secret with wasm_bindgen" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Encrypting and decrypting a secret with wasm_bindgen </h1> 
+   <span class="page-date"> 2024-02-23 </span> 
+</div>
+<div class="franklin-content">
+<p>Doing a round trip of encrypting and decrypting a secret should be pretty easy, right? Well, it turned out to be a bit more involved than I thought. But, in the end it worked here is the code for anyone who wants to do the same.</p>
+<p>I&#39;ll be going through the functions step by step first. The full example with imports is shown at the end.</p>
+<p>First, we need to generate a key. Here, I&#39;ve set <code>extractable</code> to <code>false</code>. This aims to prevent the key from being read by other scripts.</p>
+<pre><code class="language-rust">fn crypto&#40;&#41; -&gt; web_sys::Crypto &#123;
+    let window &#61; web_sys::window&#40;&#41;.expect&#40;&quot;no global &#96;window&#96; exists&quot;&#41;;
+    window.crypto&#40;&#41;.expect&#40;&quot;no global &#96;crypto&#96; exists&quot;&#41;
+&#125;
+
+pub fn generate_key&#40;&#41; -&gt; Promise &#123;
+    let sc &#61; crypto&#40;&#41;.subtle&#40;&#41;;
+    // Symmetric encryption is used, so the same key is used for both operations.
+    // GCM has good performance and security according to Wikipedia.
+    let algo &#61; AesKeyGenParams::new&#40;&quot;AES-GCM&quot;, 256&#41;;
+    let extractable &#61; false;
+    let usages &#61; js_array&#40;&amp;&#91;&quot;encrypt&quot;, &quot;decrypt&quot;&#93;&#41;;
+    sc.generate_key_with_object&#40;
+        &amp;algo,
+        extractable,
+        &amp;usages
+    &#41;.expect&#40;&quot;failed to generate key&quot;&#41;
+&#125;</code></pre>
+<p>Note here that we do not use <code>generate_key_with_str</code>. This is a tip from Renato Athaydes in a <a href="https://github.com/rustwasm/wasm-bindgen/issues/2128#issuecomment-625343298">GitHub comment</a>. It is possible to use the <code>str</code> version, but using the <code>object</code> version allows for more checking by the Rust compiler. When passing wrong information to the API, the browser will give quite unhelpful errors such as &quot;an invalid or illegal string was specified&quot; or &quot;the operation failed for an operation-specific reason&quot;.</p>
+<p>Next, this is how a secret can be encrypted:</p>
+<pre><code class="language-rust">pub fn encrypt&#40;key: &amp;CryptoKey, data: &amp;&#91;u8&#93;&#41; -&gt; &#40;Uint32Array, Promise&#41; &#123;
+    let sc &#61; crypto&#40;&#41;.subtle&#40;&#41;;
+    // Use different IV for every encryption operation according to AesGcmParams docs.
+    // IV doesn&#39;t have to be secret, so can be sent with the encrypted data according to docs.
+    #&#91;allow&#40;unused_mut&#41;&#93;
+    let mut iv &#61; Uint32Array::new_with_length&#40;12&#41;;
+    // To verify that the IV is truly overwritten.
+    // log&#40;&amp;format&#33;&#40;&quot;iv: &#123;:?&#125;&quot;, iv.to_vec&#40;&#41;&#41;&#41;;
+    crypto&#40;&#41;.get_random_values_with_array_buffer_view&#40;&amp;iv&#41;.unwrap&#40;&#41;;
+    // log&#40;&amp;format&#33;&#40;&quot;iv: &#123;:?&#125;&quot;, iv.to_vec&#40;&#41;&#41;&#41;;
+    let algo &#61; AesGcmParams::new&#40;
+        &quot;AES-GCM&quot;,
+        &amp;iv
+    &#41;;
+    let encrypted &#61; sc.encrypt_with_object_and_u8_array&#40;
+        &amp;algo,
+        key,
+        data
+    &#41;.expect&#40;&quot;failed to encrypt&quot;&#41;;
+    &#40;iv, encrypted&#41;
+&#125;</code></pre>
+<p>Here, I used <code>get_random_values_with_array_buffer_view</code> instead of <code>get_random_values_with_u8_array</code>. This is because the former is more explicit in the type of the IV, which makes it easier to pass it along with the encrypted data and use it in the <code>decrypt</code> function.</p>
+<p>Finally, this is how a secret can be decrypted:</p>
+<pre><code class="language-rust">pub fn decrypt&#40;key: &amp;CryptoKey, iv: &amp;Object, data: &amp;&#91;u8&#93;&#41; -&gt; Promise &#123;
+    let sc &#61; crypto&#40;&#41;.subtle&#40;&#41;;
+    let algo &#61; AesGcmParams::new&#40;
+        &quot;AES-GCM&quot;,
+        iv
+    &#41;;
+    sc.decrypt_with_object_and_u8_array&#40;
+        &amp;algo,
+        key,
+        data
+    &#41;.expect&#40;&quot;failed to decrypt&quot;&#41;
+&#125;</code></pre>
+<p>Putting it all together and adding a test function, we get:</p>
+<pre><code class="language-rust">use console_error_panic_hook::hook;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::AesGcmParams;
+use web_sys::AesKeyGenParams;
+use web_sys::CryptoKey;
+use web_sys::js_sys::Object;
+use web_sys::js_sys::Promise;
+use web_sys::js_sys::Uint32Array;
+use web_sys::js_sys;
+
+#&#91;wasm_bindgen&#93;
+extern &quot;C&quot; &#123;
+    #&#91;wasm_bindgen&#40;js_namespace &#61; console&#41;&#93;
+    pub fn log&#40;s: &amp;str&#41;;
+&#125;
+
+fn crypto&#40;&#41; -&gt; web_sys::Crypto &#123;
+    let window &#61; web_sys::window&#40;&#41;.expect&#40;&quot;no global &#96;window&#96; exists&quot;&#41;;
+    window.crypto&#40;&#41;.expect&#40;&quot;no global &#96;crypto&#96; exists&quot;&#41;
+&#125;
+
+fn js_array&#40;values: &amp;&#91;&amp;str&#93;&#41; -&gt; JsValue &#123;
+    return JsValue::from&#40;values.iter&#40;&#41;
+        .map&#40;|x| JsValue::from_str&#40;x&#41;&#41;
+        .collect::&lt;js_sys::Array&gt;&#40;&#41;&#41;;
+&#125;
+
+trait AsByteSlice &#123;
+    fn as_u8_slice&#40;&amp;self&#41; -&gt; Result&lt;Vec&lt;u8&gt;, JsValue&gt;;
+&#125;
+
+impl AsByteSlice for JsValue &#123;
+    fn as_u8_slice&#40;&amp;self&#41; -&gt; Result&lt;Vec&lt;u8&gt;, JsValue&gt; &#123;
+        let buffer &#61; self.clone&#40;&#41;.dyn_into::&lt;js_sys::ArrayBuffer&gt;&#40;&#41;
+            .map_err&#40;|_| JsValue::from_str&#40;&quot;Expected ArrayBuffer&quot;&#41;&#41;?;
+
+        let uint8_array &#61; js_sys::Uint8Array::new&#40;&amp;buffer&#41;;
+
+        let mut bytes &#61; vec&#33;&#91;0; uint8_array.length&#40;&#41; as usize&#93;;
+        uint8_array.copy_to&#40;&amp;mut bytes&#41;;
+        Ok&#40;bytes&#41;
+    &#125;
+&#125;
+
+pub fn generate_key&#40;&#41; -&gt; Promise &#123;
+    let sc &#61; crypto&#40;&#41;.subtle&#40;&#41;;
+    // Symmetric encryption is used, so the same key is used for both operations.
+    // GCM has good performance and security according to Wikipedia.
+    let algo &#61; AesKeyGenParams::new&#40;&quot;AES-GCM&quot;, 256&#41;;
+    let extractable &#61; false;
+    let usages &#61; js_array&#40;&amp;&#91;&quot;encrypt&quot;, &quot;decrypt&quot;&#93;&#41;;
+    sc.generate_key_with_object&#40;
+        &amp;algo,
+        extractable,
+        &amp;usages
+    &#41;.expect&#40;&quot;failed to generate key&quot;&#41;
+&#125;
+
+pub fn encrypt&#40;key: &amp;CryptoKey, data: &amp;&#91;u8&#93;&#41; -&gt; &#40;Uint32Array, Promise&#41; &#123;
+    let sc &#61; crypto&#40;&#41;.subtle&#40;&#41;;
+    // Use different IV for every encryption operation according to AesGcmParams docs.
+    // IV doesn&#39;t have to be secret, so can be sent with the encrypted data according to docs.
+    #&#91;allow&#40;unused_mut&#41;&#93;
+    let mut iv &#61; Uint32Array::new_with_length&#40;12&#41;;
+    // To verify that the IV is truly overwritten.
+    // log&#40;&amp;format&#33;&#40;&quot;iv: &#123;:?&#125;&quot;, iv.to_vec&#40;&#41;&#41;&#41;;
+    crypto&#40;&#41;.get_random_values_with_array_buffer_view&#40;&amp;iv&#41;.unwrap&#40;&#41;;
+    // log&#40;&amp;format&#33;&#40;&quot;iv: &#123;:?&#125;&quot;, iv.to_vec&#40;&#41;&#41;&#41;;
+    let algo &#61; AesGcmParams::new&#40;
+        &quot;AES-GCM&quot;,
+        &amp;iv
+    &#41;;
+    let encrypted &#61; sc.encrypt_with_object_and_u8_array&#40;
+        &amp;algo,
+        key,
+        data
+    &#41;.expect&#40;&quot;failed to encrypt&quot;&#41;;
+    &#40;iv, encrypted&#41;
+&#125;
+
+pub fn decrypt&#40;key: &amp;CryptoKey, iv: &amp;Object, data: &amp;&#91;u8&#93;&#41; -&gt; Promise &#123;
+    let sc &#61; crypto&#40;&#41;.subtle&#40;&#41;;
+    let algo &#61; AesGcmParams::new&#40;
+        &quot;AES-GCM&quot;,
+        iv
+    &#41;;
+    sc.decrypt_with_object_and_u8_array&#40;
+        &amp;algo,
+        key,
+        data
+    &#41;.expect&#40;&quot;failed to decrypt&quot;&#41;
+&#125;
+
+async fn test_crypto&#40;&#41; -&gt; Result&lt;&#40;&#41;, JsValue&gt; &#123;
+    let key: Promise &#61; generate_key&#40;&#41;;
+    let key: JsValue &#61; JsFuture::from&#40;key&#41;.await?;
+    let key: CryptoKey &#61; key.into&#40;&#41;;
+    let text &#61; &quot;some secret text&quot;;
+    let &#40;iv, encrypted&#41; &#61; encrypt&#40;&amp;key, text.as_bytes&#40;&#41;&#41;;
+    let encrypted: JsValue &#61; JsFuture::from&#40;encrypted&#41;.await?;
+
+    let data &#61; encrypted.as_u8_slice&#40;&#41;.unwrap&#40;&#41;;
+    let decrypted: Promise &#61; decrypt&#40;&amp;key, &amp;iv, &amp;data&#41;;
+    let decrypted: JsValue &#61; JsFuture::from&#40;decrypted&#41;.await?;
+    let decrypted &#61; decrypted.as_u8_slice&#40;&#41;.unwrap&#40;&#41;;
+    let decrypted &#61; String::from_utf8&#40;decrypted&#41;.unwrap&#40;&#41;;
+    log&#40;&amp;format&#33;&#40;&quot;decrypted: &#123;decrypted:?&#125;&quot;&#41;&#41;;
+
+    Ok&#40;&#40;&#41;&#41;
+&#125;
+
+#&#91;wasm_bindgen&#40;start&#41;&#93;
+pub async fn start&#40;&#41; -&gt; Result&lt;&#40;&#41;, JsValue&gt; &#123;
+    panic::set_hook&#40;Box::new&#40;hook&#41;&#41;;
+
+    test_crypto&#40;&#41;.await?;
+    Ok&#40;&#40;&#41;&#41;
+&#125;</code></pre>
+<p>with the following dependencies in <code>Cargo.toml</code> and, in my case, Rust version 1.76:</p>
+<pre><code class="language-toml">&#91;dependencies&#93;
+console_error_panic_hook &#61; &quot;0.1.7&quot;
+url &#61; &quot;2.5.0&quot;
+wasm-bindgen &#61; &quot;0.2.91&quot;
+wasm-bindgen-futures &#61; &quot;0.4.41&quot;
+
+&#91;dependencies.web-sys&#93;
+version &#61; &quot;0.3.68&quot;
+features &#61; &#91;
+    &#39;AesGcmParams&#39;,
+    &#39;AesKeyGenParams&#39;,
+    &#39;Crypto&#39;,
+    &#39;CryptoKey&#39;,
+    &#39;SubtleCrypto&#39;,
+    &#39;Window&#39;
+&#93;</code></pre>
+<p>In this <code>test_crypto</code> function, the <em>secret</em> text &quot;some secret text&quot; is encrypted and then decrypted. The decrypted text is then logged to the console.</p>
+<p>Running this code in a web browser, the logs show the correct result:</p>
+<pre><code class="language-julia">decrypted: &quot;some secret text&quot;</code></pre>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> The history of the ROC curve - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="The history of the ROC curve" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="The history of the receiver operating characteristic curve is well known, or is it?" />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="The history of the ROC curve" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> The history of the ROC curve </h1> 
+   <span class="page-date"> 2024-04-25 </span> 
+</div>
+<div class="franklin-content">
+<p>The Receiver Operating Characteristic &#40;ROC&#41; curve is a well-known tool used to evaluate the performance of binary classifiers. Its history is clear. According to <a href="https://en.wikipedia.org/wiki/Receiver_operating_characteristic#History">Wikipedia</a>, it</p>
+<p><em>&quot;was first developed by electrical engineers and radar engineers during World War II for detecting enemy objects in battlefields, starting in 1941, which led to its name &#40;&#39;receiver operating characteristic&#39;&#41;&quot;</em></p>
+<p>Another source also states that the ROC curve was first used during the second world war to distinguish between enemy targets, or just noise by radar receiver operators &#40;utah.edu, <a href="http://web.archive.org/web/20170829222243/http://www.math.utah.edu/~gamez/files/ROC-Curves.pdf">2007</a>&#41;.</p>
+<p>A recent paper keeps the history more subtle by stating that</p>
+<p><em>&quot;The development of receiver operating characteristic &#40;ROC&#41; curves comes out of signal detection theory, which arose in part as a method to improve the accuracy of radar detection during World War II.&quot;</em> &#40;Junge &amp; Dettori, <a href="https://doi.org/10.1177&#37;2F2192568218778294">2018</a>&#41;</p>
+<p>And they use two citations for this. One does contain curves &#40;Marcum, <a href="https://www.rand.org/pubs/research_memoranda/RM754.html">1947</a>&#41; but since none of the curves plot the true positive rate against the false positive rate, they are not ROC curves. The other does mention ROC curves &#40;Peterson et al., <a href="https://doi.org/10.1109/TIT.1954.1057460">1954</a>, Section 2.7&#41;, but not its history. So maybe the history is actually not clear?</p>
+<p>It does provide one of the clearest explanations for the need of the ROC curve that I have seen:</p>
+<p><em>&quot;The problem of signal detectability treated in this paper is the following: Suppose an observer is given a voltage varying with time during a prescribed observation interval and is asked to decide whether its source is noise or is signal plus noise. What method should the observer use to make this decision, and what receiver is a realization of that method?&quot;</em></p>
+<p>And a clear explanation for the plot axes:</p>
+<p><em>&quot;By the very definition of the ROC curve, the X coordinate is the conditional probability, F, of false alarm, and the Y coordinate is the conditional probability of a hit.&quot;</em></p>
+<p>What is nice about this definition is that it uses terms that are, in my opinion, more clear than <em>true positive</em> and <em>false positive</em>. This paper shows more generally that the authors understood ROC curves well:</p>
+<p><em>&quot;An optimum observer required to give a yes or no answer simply chooses an operating level and concludes that the receiver input required to give a yes or no answer simply chooses an operating level and concludes that the receiver input arose from signal plus noise only when this level is exceeded by the output of his likelihood ratio receiver.&quot;</em></p>
+<p>As I understand it, the authors here describe a solution to the problem: determine a threshold &#40;<em>operating level</em>&#41; for the receiver input and respond <em>yes</em> if the input is above the threshold, otherwise <em>no</em>. Put differently, say the receiver input is a value of between 0 and 1, then the &quot;optimum observer&quot; can choose a threshold of, say, 0.55, and if the input is above 0.55, the receiver says <em>yes</em>, otherwise <em>no</em>.</p>
+<p>The authors continue:</p>
+<p><em>&quot;Associated with each such operating level are conditional probabilities that the answer is a false alarm and the conditional probability of detection.&quot;</em></p>
+<p>So here we do see some evidence that the ROC curve was used for interpreting radar signals since they use the words &quot;false alarm&quot; and &quot;detection&quot;. Furthermore, they state that</p>
+<p><em>&quot;Graphs of these quantities, called receiver operating characteristic, or ROC, curves are convenient for evaluating a receiver. If the detection problem is changed by varying, for example, the signal power, then a family of ROC curves is generated.&quot;</em></p>
+<h2 id="were_roc_curves_used_during_world_war_ii"><a href="#were_roc_curves_used_during_world_war_ii" class="header-anchor">Were ROC curves used during World War II?</a></h2>
+<p>From this, it sounds like the ROC curves were not necessarily used by radar operators but by engineers. I suspect this because the task of &quot;evaluating a receiver&quot; sounds like a one-time task and because the procedure is quite complex; especially in the description as provided in this paper.</p>
+<p>Relatedly, engineers also have to decide on the waveform of the radar signal, how to amplify and denoise the response signal, and to convert this signal to a video signal &#40;Cook, <a href="https://doi.org/10.1016/B978-0-12-186750-8.X5001-7">1967</a>&#41;. In Fig 1.1 of the book by Cook, there is a &quot;detector and video amplifier&quot; step before the &quot;output display&quot; step. This &quot;detector&quot; suggests that the radar signal is converted from a continuous signal to a binary signal. Although the word &quot;detector&quot; can also be used to measure how much of something there is, I think that&#39;s unlikely. It is unlikely that the &quot;receiver operator&quot; would need to inspect the strenght of the video signal and convert that to a binary decision via a threshold.</p>
+<p>Furthermore, one of the references of the paper is a book published by Lawson and Uhlenbeck &#40;<a href="https://archive.org/details/dli.ernet.6328">1950</a>&#41; at MIT. Chapter 7 slightly argues in favor of the operator doing the thresholding. The book states:</p>
+<p><em>&quot;Since in the last analysis a human observer must judge, either visually or aurally, whether the signal is present or not, it is clear that some of the psychophysiological properties of the eye or the ear will influence the signal threshold. For instance, in the visual observation of a radar signal on an A-scope or PPI, enough light must be produced on the screen to make the display visible. In other words there is a brightness limit for the detection of a signal.&quot;</em></p>
+<p>Interestingly, this book then continues by depicting a &quot;betting curve&quot; in Fig 7.2. This curve plots the signal strength on the x-axis against the successes in percent on the y-axis. So here we have almost a ROC curve because the y-axis seems to be identical to the true positive rate. The x-axis is not the false positive rate, but the signal strength. This suggests that the ROC curve was not known yet in 1950, or at least not with that name.</p>
+<p>Another reference mentioned by Peterson is Davies &#40;<a href="https://doi.org/10.1049/pi-3.1952.0012">1952</a>&#41;. Davies denotes \(\overline{p}(E|S)\) as the mean probability of received signal energy given that the signal is transmitted. This is effectively the true positive rate. Davies also used \(E/N_0\) to denote the received signal energy to noise ratio. This is effectively the \(\frac{\text{true positive rate}}{\text{false positive rate}}\). Davies then plots these in Fig. 1 and 2 of the paper. This also suggests that the ROC curve was not known yet in 1952, at least not at the Telecommunications Research Establishment in the UK, where the author worked at the time.</p>
+<p>Dilip Sarwate &#40;a <a href="https://ece.illinois.edu/about/directory/faculty/sarwate">retired professor of electrical and computer engineering</a>&#41; on <a href="https://stats.stackexchange.com/questions/341043">stats.stackexchange.com</a> agrees that the earliest reference that he knows of is from 1953, namely Woodward &#40;<a href="https://doi.org/10.1016/C2013-0-05390-X">1953</a>&#41;. Indeed, in that book Chapter 8.2 dicusses <em>F</em> and <em>L</em>, where <em>F</em> is the</p>
+<p><em>&quot;probability, when the signal is absent, of what is called in radar a &#39;false alarm&#39;&quot;</em></p>
+<p>and <em>L</em> is the</p>
+<p><em>&quot;probability, when the signal is present, of missing it. We may call L the &#39;loss probability&#39;. The value 1-L is often called the probability of detection, &#91;...&#93; Radar designers are much concerned with F and L. &#91;...&#93; The right balance may well be influenced by prior probabilities, taken in conjunction with the kind of disaster which would result from mistakes in one or the other kind.&quot;</em></p>
+<p>In other words, <em>F</em> is the false positive rate and <em>L</em> is the false negative rate. Next, these are plotted against each other in Fig. 22 of the book. Although Woodward calls this a LF error diagram, I think most people would agree that this is essentially a ROC curve. The only difference is the name and plotting the false negative rate instead of the true positive rate. Furthermore, Prof. Sarwate also adds that the concept was developed during World War II.</p>
+<h2 id="the_war_period"><a href="#the_war_period" class="header-anchor">The war period</a></h2>
+<p>The Wikipedia page on the <a href="https://en.wikipedia.org/wiki/Chain_Home">Chain Home</a> &#40;CH&#41; radar system has some more information about the war period. It states that the first military radar system was operational in August 1938. To calibrate the cathode-ray tube &#40;CRT&#41; &#40;read the display of the oscilloscope&#41;, known aircraft flew over a known landmark.</p>
+<p>Contrary to my earlier argument saying that the conversion from continuous to binary was likely not done by the operators, Neale &#40;<a href="http://www.radarpages.co.uk/mob/ch/chainhome.htm">1985</a>&#41; writes:</p>
+<p><em>&quot;It should be mentioned at this point that the great success of CH was due in no small measure to the incredible acquired skill of experienced operators, particularly the WAAFS &#40;Women&#39;s Auxiliary Air Force&#41;. Signals at extreme ranges, well below &#39;noise&#39; level, were detected and tracked. The mechanism by which this was achieved is still not fully understood but believed to be due to an unconscious form of pattern recognition within the noise structure, somewhat analogous to the &#39;cocktail party&#39; effect. Also, unlike scanning &#40;searchlight&#41; radars, CH, being a &#39;floodlit&#39; system, provided up-date at p.r.f. rate with a corresponding integration gain when using a CRT with a long persistence phosphor. Figure 6 illustrates typical performance achieved by experienced operators on an average size bomber such as the Heinkel 111.&quot;</em></p>
+<p>From this writing, it appears that ROC curves were not used at the time to find the right threshold. Instead, the operators looked at the continuous signal and made the decision themselves.</p>
+<p>Next, this signal would be sent from the radar station to the filter room. The filter room would combine the information and prefix it by an X. Once identified, the plane would be given an H for hostile or F for friendly prefix.</p>
+<p>In some way, this makes sense since picking a threshold would remove a lot of information. Instead, the operators could use the low signal information, which would technically be below the threshold value, to make a decision. They most likely did this by not looking at one point in time but by noticing that some &quot;noise&quot; was actually having a regular pattern and behaving like a plane.</p>
+<p>For a bit of background, this is what the operators would see:</p>
+
+<p><a href="https://commons.wikimedia.org/wiki/File:Chain_Home_screen_shot_-NEDAD.2013.047.058A.jpg#/media/File:Chain_Home_screen_shot_-NEDAD.2013.047.058A.jpg"><img src="https://upload.wikimedia.org/wikipedia/commons/3/3f/Chain_Home_screen_shot_-NEDAD.2013.047.058A.jpg" alt="Chain Home screen shot -NEDAD.2013.047.058A.jpg" height="5275" width="7031"></a><br><i>By Radar Museum, NEDAD.2013.047.058A, <a href="https://creativecommons.org/licenses/by-sa/3.0" title="Creative Commons Attribution-Share Alike 3.0">CC BY-SA 3.0</a>, <a href="https://commons.wikimedia.org/w/index.php?curid=32661852">Link</a></i></p>
+
+<p>The radars at the time were unable to rotate, so the operators would see one line on the CRT. This line would could show a blip at multiple distances depending on whether the signal was reflected by an object &#40;or noise&#41;.</p>
+<p>Furthermore, Neale writes:</p>
+<p><em>&quot;Many ingenious devices, including optical converters, and calculators, too numerous to describe here, were introduced in the latter stages of the war which made the Chain Home system extremely efficient and reliable.&quot;</em></p>
+<p>And that a, so called, Fruit Machine was used to make the work of the operators easier. Based on the writing by Neale, this machine would do various calculations for determining the location of the plane, but not for determining whether the signal was noise or a plane.</p>
+<h2 id="back_to_peterson_et_al"><a href="#back_to_peterson_et_al" class="header-anchor">Back to Peterson et al.</a></h2>
+<p>Another reference mentioned by Peterson et al. is Fox &#40;<a href="https://deepblue.lib.umich.edu/bitstream/handle/2027.42/4946/bac2264.0001.001.pdf">1953</a>&#41;. To reiterate, Peterson, Birdsall, and Fox appear to be the first mention of ROC curves, but they do not provide a history. In Fox&#39;s paper, however, the following is written:</p>
+<p><em>&quot;This curve will be called the Receiver Operating Characteristic &#40;briefly, ROC&#41; curve &#91;...&#93;&quot;</em></p>
+<p>It then continues to give an extensive definition and describes the value of the ROC curve. For the definition, the x-axis is the conditional probability of false alarm &#40;false positive rate&#41; and the y-axis is the conditional probability of a hit &#40;true positive rate&#41;.</p>
+<p>In the conclution, Fox further defends the use of the ROC curve by writing:</p>
+<p><em>&quot;In the absense of experimental verification of the accuracy of the ROC curve in predicting the performance of the optimum receiver, there is one remaining fact which could be interpreted as casting doubt on the reliability of the theory so far developed.&quot;</em></p>
+<p>In the references, Fox attributes the idea of false alarm and detection probabilities to an example given by Kaplan &amp; Fall &#40;<a href="https://doi.org/10.1109/JRPROC.1951.230422">1951</a>&#41;. Kaplan &amp; Fall write:</p>
+<p><em>&quot;The advent of high-speed scanning radars which yield but a few pulses per scan element and displays which collapse the range co-ordinate has necessitated an analytical approach to the problem of radar range performance, as empirical methods have proven inadequate.&quot;</em></p>
+<p>Furthermore, they write:</p>
+<p><em>&quot;It is the primary purpose of this paper to demonstrate a method of calculating the range performance of a radar on a statistical basis, that is, for a given range, the probability of detection of a target and the probability of occurrence of false target echoes may be stated. It is no longer necessary to use such quantities as maximum effective range or maximum useful range which are subject to wide variations in calculation and interpretation, or to ignore false target echoes and their consequences.&quot;</em></p>
+<p>In the plots, various curves are shown; none of which are ROC curves. Like what Davies published a year later, most plots have the signal-to-noise ratio on one of the plot axes, and a clear focus on the applicability to radar systems.</p>
+<p>The authors conclude by saying:</p>
+<p><em>&quot;The authors feel that the interpretation of range performance of a radar as a statistical quantity is a new and valuable one. Using the methods presented in this paper, the probability of detection of a given target at a particular range and the probability of occurence of false echoes may be determined.&quot;</em></p>
+<p>And argue that their statistical method can be used for more accurate comparisons between existing radars and result in a systematic optimization of the radar system parameters.</p>
+<p>Finally, one of the references by Fox in 1953 is a technical report by Peterson &amp; Birdsall. This report, called technical report no. 13, is from June 1953. Here they talk about the receiver operating characteristic without clarifying whether they invented it or whether they are re-using it.</p>
+<h2 id="conclusion"><a href="#conclusion" class="header-anchor">Conclusion</a></h2>
+<p>Contrary to what is stated on Wikipedia and other recent sources, there is no evidence to support that the ROC curve was used during World War II. Instead, British operators would manually look at the signal and determine whether they were looking at an enemy plane or noise. Furthermore, in 1950 a 400 pages book on threshold signals does mention a curve that is almost a ROC curve, but is not exactly it. Furthermore, other papers also mention similar ideas, but often have one or two differences in the choice of axes. Only in 1951, Kaplan &amp; Fall introduce a statisical way to determine the range performance of a radar system. This example then provides Fox with the ideas of &quot;false alarm probability&quot; and &quot;probability of detection&quot;. In 1953, Woodward also uses these ideas to plot a LF error diagram, which is essentially a ROC curve.</p>
+<p>In June and December 1953, Peterson, Birdsall, and Fox appear to be the first to talk about a &quot;ROC curve&quot; and show its value. Therefore, the ROC curve was likely invented in the US somewhere between 1945 and 1953 by Fox, Peterson, and Birdsall at the US Army Signal Corps. Given that researchers in the UK were publishing similar ideas, it is likely that the ROC curve was known more widely, but not yet called as such.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

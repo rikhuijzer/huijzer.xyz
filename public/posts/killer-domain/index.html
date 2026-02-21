@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Every programming language has its 'killer' domain - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Every programming language has its 'killer' domain" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="A response to the 'Every programming language needs its killer app to succeed' article." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Every programming language has its 'killer' domain" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Every programming language has its 'killer' domain </h1> 
+   <span class="page-date"> 2025-04-12 </span> 
+</div>
+<div class="franklin-content">
+<p>I recently read the article <a href="https://www.grilly.com/posts/programming-languages-reason-to-exist/">Every programming language needs its killer app to succeed</a> and think the article makes a great point. It made a lot of sense to me. However, the term &quot;killer app&quot; seems to not really work out with the examples. Only Ruby lists Ruby on Rails as its killer app, but that&#39;s basically it.</p>
+<p>Instead, I think it&#39;s about having a killer domain. So, going through the examples from the original article, here is my take:</p>
+<h3 id="statically_typed_languages"><a href="#statically_typed_languages" class="header-anchor">Statically typed languages:</a></h3>
+<ul>
+<li><p>C → Kernels.</p>
+</li>
+<li><p>C&#43;&#43; → Low-level systems programming.</p>
+</li>
+<li><p>Rust → Low-level systems programming.</p>
+</li>
+<li><p>Java → Business applications and Android.</p>
+</li>
+<li><p>C# → Business applications that run on Microsoft systems.</p>
+</li>
+<li><p>Cobol → Business applications.</p>
+</li>
+<li><p>Go → High performance servers.</p>
+</li>
+<li><p>Swift → Apps that run on Apple systems.</p>
+</li>
+</ul>
+<h3 id="dynamically_typed_languages"><a href="#dynamically_typed_languages" class="header-anchor">Dynamically typed languages:</a></h3>
+<ul>
+<li><p>Python → Scientific computing and machine learning.</p>
+</li>
+<li><p>Julia → Numeric/Scientific computing.</p>
+</li>
+<li><p>Fortran → Numeric/Scientific computing.</p>
+</li>
+<li><p>Matlab → Numeric/Scientific computing.</p>
+</li>
+<li><p>JavaScript → Web frontend.</p>
+</li>
+<li><p>TypeScript → Web frontend.</p>
+</li>
+<li><p>Ruby → Web backend.</p>
+</li>
+<li><p>PHP → Web backend.</p>
+</li>
+<li><p>Lua → Embedded into other languages.</p>
+</li>
+<li><p>R → Statistics.</p>
+</li>
+</ul>
+<p>Of course some domains are overly simplified, but in my experience each time I try to use a language in the wrong domain, it&#39;s much harder and often practically infeasable.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

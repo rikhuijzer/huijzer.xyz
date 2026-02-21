@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> GPT versus Google - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="GPT versus Google" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Comparing results for queries from ChatGPT and Google." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="GPT versus Google" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> GPT versus Google </h1> 
+   <span class="page-date"> 2023-01-24 </span> 
+</div>
+<div class="franklin-content">
+<p>In 2019, I finished my master&#39;s thesis on the topic of Natural Language Processing &#40;NLP&#41; and I thought that I understood the basics of Artificial Intelligence &#40;AI&#41; after that. However, I&#39;ve now finally tried ChatGPT and have to admit that my main conclusion was proven wrong. It is extremely likely that AI will mostly replace search engines as we know them and in this post I document Google&#39;s current responses versus the responses from recent GPT models. Google&#39;s responses will probably be fun to look back on in 20 years.</p>
+<p>First a bit of background. In 2019 when I did my thesis, BERT was just released. Just like OpenAI&#39;s newest models, BERT is based on the idea of the machine learning model called <em>transformers</em>. In my thesis I applied BERT to the problem of automatically responding to customers. The idea was to feed BERT with lot&#39;s of data from customers and build a chat bot to automate the company&#39;s support center.</p>
+<p>In the thesis, the aim focused mostly on classifying the intent of a user. For example, the intent of the sentence &quot;How to install a Brother MFC-5890CN net-work printer?&quot; should be classified as &quot;Install Printer&quot;. In the thesis, the result was basically that accuracy was not high enough. Also, there was a lot of work needed to train a model for intent classification, and then move on to interpreting the rest of the sentence. In other words, the most useful strategy at that point in time was to give very specific tasks to the model and handle the plumbing around it yourself. For years, this was my take-away from the thesis: If you want to use AI, then find a suitable problem for it first. For example, email and image classification work great if you have as much data as a big tech company. The problem is that there is not always enough data available and that some tasks are just too complex for the model to understand.</p>
+<p>In hindsight, the solution to this was obvious. In hindsight, the solution was to give the model way more data and way more free parameters. This is what happened to image classification too in the famous ImageNet competition when AlexNet severely outperformed the competition in 2012 via training on GPUs. Before AlexNet, participants to the competition used to manually and painstakingly go through all the features of, for example, flowers and try to train statistical models on specific features. Then the outcomes of different models would be combined in a hand-tuned way, and a classification for the flower would roll out of it. For example, researches would spend months to figure out which leafs can be spotted the best by which Sobel filter. However, one day, AlexNet dramatically outperformed the hand-crafted features which lead to the current AI boom. There is a video from Dr. Mike Pound somewhere explaining this transition.</p>
+<p>And now suddenly, many people expect that AI will replace Google Search. Google has allegedly declared an internal &quot;code red&quot;. And after collecting some samples, it becomes clear why.</p>
+<p>Before we continue, it is good to mention that Google&#39;s algorithm is famous for being complex and for being a closely guarded secret. Over the years, the algorithm has improved in accuracy. At some point it started to highlight answers in sources and nowadays Google returns the matching text from the query. This was likely not an easy feat. Just like hand-tuning the classification of pictures, hand-tuning the best Google Search results must have required many hours of work&#33;</p>
+<p>In the benchmarks here, I will compare Google&#39;s highlighted response to that of ChatGPT. Note that these example queries are not a result of some random sampling procedure, I just picked some queries that popped up in my mind &#40;based on what I searched for earlier this week, so it is slightly biased&#41;. To see that the bias is not too strong, feel free to try similar queries out for yourself and you&#39;ll see that ChatGPT is surprisingly accurate in most cases. Let&#39;s ask why:</p>
+<p><strong>Query</strong>: &quot;how is gpt so accurate?&quot;</p>
+<p><strong>Google:</strong></p>
+<blockquote>
+<p>Because GPT-3 is structurally similar to its predecessors, its greater accuracy is attributed to its increased capacity and greater number of parameters. GPT-3&#39;s capacity is ten times larger than that of Microsoft&#39;s Turing NLG, the next largest NLP model known at the time.</p>
+</blockquote>
+<p><strong>ChatGPT:</strong></p>
+<blockquote>
+<p>GPT &#40;Generative Pre-trained Transformer&#41; is a language model that uses deep learning techniques to generate human-like text. It is trained on a large dataset of text, which allows it to learn patterns and relationships between words and phrases. The model uses these patterns to generate new text that is similar to the text it was trained on. Additionally, GPT uses a technique called &quot;transformer architecture&quot; which allows it to effectively process large amounts of text and generate high-quality output. This architecture is based on self-attention mechanism that enable the model to weigh the importance of different words in a sentence and generate the output accordingly. This combination of large dataset and transformer architecture allows GPT to generate highly accurate and human-like text.</p>
+</blockquote>
+<p>Clearly a win for ChatGPT here. Google&#39;s answer is also correct, but for the wrong question. It answers why GPT-3 is more accurate than an earlier GPT version.</p>
+<p>And now for something completely different. A small fact about functional programming:</p>
+<p><strong>Query</strong>: &quot;Which three functions from functional programming are commonly known and which of these functions is used the least?&quot;</p>
+<p><strong>Google</strong> does not show a suggestion and just links to functional programming on Wikipedia and tutorialspoint.com.</p>
+<p><strong>ChatGPT</strong>:</p>
+<blockquote>
+<p>The three commonly known functional programming functions are:</p>
+<ol>
+<li><p><code>map&#40;&#41;</code>: This function applies a given function to each element of an iterable &#40;e.g. list, tuple, etc.&#41; and returns an iterable containing the results.</p>
+</li>
+<li><p><code>filter&#40;&#41;</code>: This function applies a given function to each element of an iterable, and only keeps the elements for which the function returns true.</p>
+</li>
+<li><p><code>reduce&#40;&#41;</code>: This function applies a given function to an iterable, cumulatively combining the elements in some way.</p>
+</li>
+</ol>
+</blockquote>
+<blockquote>
+<p>It&#39;s hard to say which function is used the least, since it can vary depending on the specific use case. Some developers may find <code>reduce</code> more difficult to understand and use as it is a bit more complex than the other two but it is also more powerful in some situations.</p>
+</blockquote>
+<p>A win for ChatGPT. The three functions are correct and the last paragraph about <code>reduce</code> is slightly wrong, but still okayish.</p>
+<p>Then, let&#39;s figure out how that American way of writing titles is called again?</p>
+<p><strong>Query:</strong> How is that American way of writing capitalized titles called again?</p>
+<p><strong>Google</strong> does not show a suggestion but does link to a document from APA at position 2 which describes &quot;Title Case Capitalization&quot;.     The document is full of details and requires some reading to figure out how to do it.</p>
+<p><strong>ChatGPT</strong>:</p>
+<blockquote>
+<p>The American way of writing capitalized titles is called &quot;Title Case.&quot; In title case, the first letter of each word in the title is capitalized, with the exception of certain small words such as &quot;a,&quot; &quot;an,&quot; &quot;the,&quot; &quot;and,&quot; &quot;but,&quot; &quot;or,&quot; etc.</p>
+</blockquote>
+<p>Both are correct, but ChatGPT&#39;s answer requires less energy &#40;for humans&#41;. Let&#39;s quickly continue and see whether we can automate the process.</p>
+<p><strong>Query:</strong> How to write &quot;This is an example sentence&quot; in title case?</p>
+<p><strong>Google</strong> links to many sources containing an &quot;example sentence&quot; because the quotation marks are interpreted as a literal.</p>
+<p><strong>ChatGPT</strong>:</p>
+<blockquote>
+<p>&quot;This is an example sentence&quot; in title case would be written as: &quot;This Is an Example Sentence&quot;</p>
+</blockquote>
+<p>Boom. Mic drop. I don&#39;t think that ChatGPT was taught by a human how to convert sentences to title case. It learned it from reading the internet. This is mind blowing.</p>
+<p>However, that &quot;Is&quot; looks a bit off to me. Is that correctly capitalized?</p>
+<p><strong>Query:</strong> Should is be capitalized in title case apa style?</p>
+<p><strong>Google</strong> links to a nice <a href="https://capitalizemytitle.com/style/APA/">tool</a> which does it correctly and also gives:</p>
+<blockquote>
+<p>The rules are fairly standard for title case: Capitalize the first and the last word. Capitalize nouns, pronouns, adjectives, verbs &#40;including phrasal verbs such as “play with”&#41;, adverbs, and subordinate conjunctions. Lowercase articles &#40;a, an, the&#41;, coordinating conjunctions, and prepositions &#40;regardless of length&#41;.</p>
+</blockquote>
+<p><strong>ChatGPT:</strong></p>
+<blockquote>
+<p>In APA style, the word &quot;is&quot; should not be capitalized in title case. APA style advises against capitalizing conjunctions, prepositions, and articles unless they are the first or last word in the title.</p>
+<p>So &quot;This is an example sentence&quot; in APA style title case would be written as &quot;This is an Example Sentence&quot;.</p>
+</blockquote>
+<p>So, to me as a non-native American speaker who doesn&#39;t know the meaning of &quot;pronouns&quot; and &quot;adjectives&quot;, the Google suggestion is useless again apart from the great link.</p>
+<p>The ChatGPT suggestion is worse here because it is wrong. &quot;Is&quot; should be capitalized.</p>
+<p>Finally, a last one to save the day for ChatGPT again: In the introduction, I said that it was pretty difficult in 2019 to get the intent for the sentence: &quot;How to install a Brother MFC-5890CN net-work printer?&quot; correct. Nowadays, that is solved:</p>
+<p><strong>Query:</strong>: How to install a Brother MFC-5890CN net-work printer?</p>
+<p><strong>Google</strong> links to the webpage from Brother which has a direct link to the right manual.</p>
+<p><strong>ChatGPT:</strong></p>
+<blockquote>
+<p>Installing a Brother MFC-5890CN network printer typically involves the following steps:</p>
+<ol>
+<li><p>Connect the printer to your network: Connect the printer to your router or switch using an Ethernet cable.</p>
+</li>
+<li><p>Install the printer driver: Download the latest printer driver for the Brother MFC-5890CN from the Brother website and install it on the computer you want to use to print from.</p>
+</li>
+<li><p>Add the printer to your computer: Once the driver is installed, you will need to add the printer to your computer. This can be done by going to the &quot;Control Panel&quot; and then &quot;Devices and Printers&quot; on Windows, or &quot;System Preferences&quot; and then &quot;Print &amp; Fax&quot; on Mac.</p>
+</li>
+<li><p>Configure the network settings: You will need to configure the network settings for your printer. This can be done by going to the printer&#39;s web-based configuration page and accessing the network settings.</p>
+</li>
+<li><p>Print a test page: Once the printer is set up and connected to your network, you can print a test page to ensure that it is working properly.</p>
+</li>
+</ol>
+<p>Note: The specific steps may vary depending on your operating system and network configuration. Also, you should refer to the printer&#39;s manual for detailed instructions on how to install and configure the Brother MFC-5890CN network printer.</p>
+</blockquote>
+<p>According to the manual that Google linked, one should install the MFL-Pro Suite. This is hidden on page 27 after instructions such as &quot;Unpack the machine and check the components&quot;. So, one could say that the printer installation instructions by ChatGPT are wrong. I wouldn&#39;t say so. After going to the Brother website, the driver installation program is actually returned and, indeed, this will most likely contain enough instructions to get the printer going. Arguably, the instructions in the manual are as wrong as the ChatGPT instructions because no one who wants to achieve results follows the manual step-by-step.</p>
+<p>In conclusion, Google and ChatGPT are both sometimes wrong and sometimes right. In general, ChatGPT is way faster as was also observed by <a href="https://alperovitch.sais.jhu.edu/five-days-in-class-with-chatgpt/">someone participating in a class with ChatGPT</a>. I wonder how search &#40;or knowledge work for that matter&#41; is going to look in a few years. Crazy times.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

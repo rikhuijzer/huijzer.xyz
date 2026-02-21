@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Predicates and reproducibility - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Predicates and reproducibility" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Thinking about the layers above statistics." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Predicates and reproducibility" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Predicates and reproducibility </h1> 
+   <span class="page-date"> 2020-05-11 </span> 
+</div>
+<div class="franklin-content">
+<p>While reading texts on statistics and meta-science I kept noticing vagueness. For example, there seems to be half a dozen definitions of replicability in papers since 2016. In this text, I try to formalize the underlying structure.</p>
+<p><em>Edit 2020-11-01: The model below is basically the same, but poorer, than the causal models as presented by, for example, <span class="bibref"><a href="#pearl2009">Pearl (2009)</a></span>.</em></p>
+<p>Assume determinism. Assume that for any function \(f\) there is a set of predicates, or <em>context</em>, \(C\) which need to hold for the function to hold, that is, return the correct answer. Let this be denoted by \(C \xRightarrow{a} f\). For example, Bernoulli&#39;s equation solved for \(\rho\) only holds for a context \(C_b\) containing isentropic flows, that is, \(C_b \Rightarrow \text{Bernoulli's equation}\), where \(C_b\) contains isentropic flows. There have been arguments that such contexts need to contain an &#40;open-ended&#41; list of negative conditions <span class="bibref">(<a href="#hoefer2003">Hoefer (2003)</a>)</span>. Let these contexts and the contexts below also contain this list.</p>
+<p>The goal of science is to come up with models which allow for making accurate predictions. The scientific process consists of various steps to derive these models. Let \(\mathbb{C}\) be the context space, that is, all the possible contexts a scientist can choose to experiment in. For some study \(u\) let</p>
+<ul>
+<li><p>\(C_u\) be the <strong>context</strong> &#40;a set of predicates&#41; which holds for study \(u\),</p>
+</li>
+<li><p>\(s_u\) be the <strong>sample</strong> used by study \(u\),</p>
+</li>
+<li><p>\(r_u\) be the <strong>raw</strong> data obtained from the sample,</p>
+</li>
+</ul>
+<p>- \(w_u\) be the <strong>wrangled</strong> data, that is, the cleaned data</p>
+<ul>
+<li><p>\(m_u\) be statistics on \(w_u\), such as the <strong>mean</strong>, and</p>
+</li>
+<li><p>\((C_u' \Rightarrow f_u)\) be the reported model.</p>
+</li>
+</ul>
+<p>Note that \(C_u \neq C_u'\); this usually is a generalization based on intuition of the researcher. For example, a researcher omits the fact that a study on 20 patients only included patients with blue eyes, since that is not expected to affect the results. The steps are chosen such that each step can be a potential source of error.</p>
+<p>We can depict study \(u\), with steps \(1, 2, ..., 6\) as</p>
+\[ \mathbb{C} \xRightarrow{1} C_u \xRightarrow{2} s_u \xRightarrow{3} r_u \xRightarrow{4} w_u \xRightarrow{5} m_u \xRightarrow{6} (C_u' \Rightarrow f_u). \]
+<p>Most steps have well-known names. Step 2 is called sampling, step 3 measuring, step 4 data cleaning or wrangling, step 5 calculating statistics, and step 6 inference.</p>
+<p><span class="bibref"><a href="#goodman2016">Goodman et al. (2016)</a></span> introduce the following definitions for reproducibility.</p>
+<ul>
+<li><p>methods reproducibility: &quot;the ability to implement, as exactly as possible, the experimental and computational procedures, with the same data and tools, to obtain the same results&quot;,</p>
+</li>
+<li><p>results reproducibility: &quot;the production of corroborating results in a new study, having followed the same experimental methods&quot;, and</p>
+</li>
+<li><p>inferential reproducibility: &quot;the making of knowledge claims of similar strenght from a study replication or reanalysis&quot;.</p>
+</li>
+</ul>
+<p>These definitions can also be stated as</p>
+<ul>
+<li><p>methods reproducibility: Obtaining the same results from having identical steps 4 and 5,</p>
+</li>
+<li><p>results reproducibility: Obtaining the same results from having identical steps 1, 2, 3, 4 and 5,</p>
+</li>
+<li><p>inferential reproducibility: Obtaining the same results from having identical steps 1, 2, 3, 4, 5 and 6.</p>
+</li>
+</ul>
+<h2 id="references"><a href="#references" class="header-anchor">References</a></h2>
+<p><a id="goodman2016" class="anchor"></a> Goodman, S. N., Fanelli, D., &amp; Ioannidis, J. P. A. &#40;2016&#41;. What does research reproducibility mean? Science Translational Medicine, 8&#40;341&#41;, 341ps12-341ps12. <a href="https://doi.org/10.1126/scitranslmed.aaf5027">https://doi.org/10.1126/scitranslmed.aaf5027</a></p>
+<p><a id="hoefer2003" class="anchor"></a> Hoefer, C. &#40;2003&#41;. Causal Determinism. <a href="https://plato.stanford.edu/archives/spr2016/entries/determinism-causal/">https://plato.stanford.edu/archives/spr2016/entries/determinism-causal/</a></p>
+<p><a id="pearl2009" class="anchor"></a> Pearl, J. &#40;2009&#41;. Causality. Cambridge university press.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

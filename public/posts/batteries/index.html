@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> How much have batteries changed over time? - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="How much have batteries changed over time?" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Looking at multiple years of data for phone and car batteries." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="How much have batteries changed over time?" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> How much have batteries changed over time? </h1> 
+   <span class="page-date"> 2024-02-19 </span> 
+</div>
+<div class="franklin-content">
+<p>From time to time, batteries make the headlines because they store too little energy, because they are too expensive, or because the costs have dropped dramatically in the last year. These things could indeed be true at the same time. Or, as Hans Rosling would say, &quot;things can be bad, and getting better.&quot; I was curious by how much. To figure out where things are heading, let&#39;s not focus on headlines and instead look at data for multiple years.</p>
+<h2 id="phone_batteries"><a href="#phone_batteries" class="header-anchor">Phone Batteries</a></h2>
+<p>As a first investigation, I wonder whether much is happening in the area of small batteries. Thanks to the rise of smartphones, these batteries may have improved dramatically over time. We could checkout the raw battery prices, but consumers would not buy at these prices. So instead let&#39;s look at consumer smartphone prices. Smartphones are a mass produced product, so they should be able to incorporate state-of-the-art battery technology. Let&#39;s therefore look at iPhone battery capacity over time.</p>
+<p>I report only ampere-hours &#40;Ah&#41; here because the watt-hours &#40;Wh&#41; were not available for the earlier phones. This is not a completely fair comparison, as newer batteries can deliver much higher voltages, but let&#39;s see what happens with battery capacity, assuming all voltage draws would be the same.</p>
+<p><img src="/assets/batteries/smartphone.png" alt="iPhone battery capacity over time" /></p>
+<p>But this of course doesn&#39;t paint the full picture. Battery capacity is growing exponentially over time, but maybe price does too? The iPhone 15 Pro Max 128 GB currently sells for about &#36;1,099. The original 1st generation 8 GB iPhone sold for &#36;599. The 2nd generation 16 GB iPhone &#40;the iPhone 3G&#41; sold for &#36;299 &#40;&#36;417 in December 2023&#39;s dollars according to the Bureau of Labor Statistics <a href="https://www.bls.gov/data/inflation_calculator.htm">website</a>&#41;. Overall, if we take the most extreme comparison, which is the iPhone 3G with the iPhone 15 Pro Max, we can see that the price is about 1099 / 417 &#61; 2.6 times as high while the battery capacity is about 4.441 / 1.15 &#61; 3.8 times as high.</p>
+<p>The comparison doesn&#39;t say much about energy density though. The iPhone 15 Pro Max is 159.9 mm &#40;6.30 in&#41; by 76.7 mm &#40;3.02 in&#41; while the iPhone 3G was only 115.5 mm &#40;4.55 in&#41; by 62.1 &#40;2.44 in&#41;. At the same time, other components in the phone have improved dramatically. The CPU, GPU, camera, and storage are multiple orders of magnitude better. All in all, modern phones do seem like a much better deal.</p>
+<h2 id="cars"><a href="#cars" class="header-anchor">Cars</a></h2>
+<p>To get a better picture of changes in batteries available for consumers, let&#39;s focus on electic vehicles &#40;EVs&#41;. Batteries are a much higher percentage of the total cost of the product in cars than in smartphones. Cars do have some improvements in their chips too, but I would expect that these costs are much lower percentage-wise.</p>
+<p><img src="/assets/batteries/capacity.png" alt="Electric vehicle &#40;EV&#41; battery capacity over time" /></p>
+<p>The plot shows that there are now many more cars with high capacity batteries available. The extremely low capacity batteries below 30 kWh have dissapeared. For example, even the small urban cars <a href="https://www.autocar.co.uk/car-news/new-cars/entry-level-skoda-ev-urban-suv-&#37;C2&#37;A322000-target-price">annouced</a> by Volkswagen, Seat, and Škoda will have at least 38 kWh.</p>
+<p>Here, most of the high capacity models throughout this plot have been Tesla. The top scorer today is still Tesla with the Cybertruck, even though this is based on the 2nd generation 4680 battery cells which are slightly worse in energy density than the Panasonic batteries that the Model S, X and Y use. It is somewhat unsurprising that the big Cybertruck has the biggest battery. Let&#39;s adjust for this by plotting the battery capacity per inflation adjusted dollar.</p>
+<p><img src="/assets/batteries/capacity-per-price.png" alt="Electric vehicle &#40;EV&#41; battery capacity per inflation adjusted dollar" /></p>
+<p>The Cybertruck with the range extender has been omitted from the plot. That version is expected to add 50 kWh for &#36;16,000. With those numbers, the Cybertruck will have a total capacity of 173 kWh. Adjusted for the total price of the car, that will give it about 0.0022 kWh/&#36;.</p>
+<p>All in all, battery capacity per dollar has clearly increased in the last decade. This matches the data that <a href="https://about.bnef.com/blog/lithium-ion-battery-pack-prices-hit-record-low-of-139-kwh/">Bloomberg</a> has gathered:</p>
+<p><img src="/assets/batteries/bloomberg.png" alt="Inflation adjusted lithium-ion battery capacity per dollar" /></p>
+<p>From this plot, it looks like battery capacity per dollar used to be growing linearly and fell off now. However, this plot is most likely affected by the raw lithium prices which became roughly <a href="https://tradingeconomics.com/commodity/lithium">6 times as expensive in 2022 and 2023</a>. Prices are currently down to 2020 levels, so battery capacity per dollar might rapidly increase in the next years.</p>
+<p>Although this is interesting, I also wonder about battery weight. Again, lab results can be interesting but I&#39;ll focus mainly on consumer products here. The question is: what about the ratio between the car battery capacity and car weight over time? To answer this, let&#39;s look at raw weights first.</p>
+<p><img src="/assets/batteries/weight.png" alt="Electric vehicle &#40;EV&#41; weight over time" /></p>
+<p>Let&#39;s now plot the EV battery capacity per EV weight.</p>
+<p>This capacity and weight should be able to explain a large part of changes in car range. Other parts are the efficiency of the drivetrain and aerodynamic efficency of the body. These parts are important too, but I do not expect orders of magnitude changes there since drivetrains and aerodynamic efficiency are much closer to their theoretical maximum than batteries. It is, for example, expected that the maximum theoretical energy density of batteries lies somewhere above 1000 Wh/kg &#40;Zheng et al., <a href="https://doi.org/10.1149/1.2901961">2008</a>&#41;. For comparison, Tesla&#39;s 4680 cells reach only about 272-296 Wh/kg, and CATL&#39;s Kirin Battery reaches only about 255 Wh/kg. These numbers are highly speculative and even the 4680 has at least two versions with different densities, so let&#39;s look at the actual cars that are actually sold. Also, taking here the full weight of the car since newer cars are using battery packs as part of the car&#39;s support structure:</p>
+<p><img src="/assets/batteries/capacity-per-weight.png" alt="Electric vehicle &#40;EV&#41; battery capacity per EV weight" /></p>
+<p>Just like the capacity per dollar, the capacity per kg is steadily increasing.</p>
+<h1 id="conclusion"><a href="#conclusion" class="header-anchor">Conclusion</a></h1>
+<p>I started this blog with the question &quot;How much have batteries changed over time?&quot; From the plots, it&#39;s clear that it is now possible to order much more storage capacity for the same weight and the same price. It is not clear whether the growth in the last 10 years was linear or exponential. What is clear though is that a lot has changed. I&#39;m really curious to see where things go in the next 10 years.</p>
+<p><em>The source code for the plots can be found <a href="/assets/batteries/batteries.jl">here</a>.</em></p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

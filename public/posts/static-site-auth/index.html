@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Static site authentication - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Static site authentication" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Setting up authentication can be quite tricky. This post walks through a few options." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Static site authentication" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Static site authentication </h1> 
+   <span class="page-date"> 2022-02-16 </span> 
+</div>
+<div class="franklin-content">
+<p>More and more companies start providing functionality for static site hosting. For example, GitHub announced Pages in 2008, Netlify was founded in 2014, GitLab annouced pages in <a href="https://about.gitlab.com/blog/2016/04/04/gitlab-pages-get-started/">2016</a> and Cloudflare launched a Pages beta in 2020. Nowadays, even large general cloud providers, such as Digital Ocean, Google, Microsoft or Amazon, have either dedicated products or dedicated tutorials on static site hosting.</p>
+<p>In terms of usability, the products score similarly. Setting up hosting usually involves linking a Git account to a hoster which will allow the hoster to detect changes and update the site based on the latest state of the repository. In terms of speed, the services are also <a href="https://savjee.be/2020/05/benchmarking-static-website-hosting-providers/">pretty</a> <a href="https://kevq.uk/comparing-static-site-hosts-best-host-for-a-static-site/">similar</a>.</p>
+<p>In terms of authentication, however, the products score differently. This blog post will walk through my experiences with private static sites.</p>
+<h2 id="basic_access_authentication"><a href="#basic_access_authentication" class="header-anchor">Basic access authentication</a></h2>
+<p>First a remark on basic auth, also known as HTTP Basic authentication &#40;BA&#41;. A worry can be that basic auth sends the credentials as cleartext. Nowadays, this is not such a big problem anymore since it can be mitigated by forcing HTTPS and today&#39;s browsers give clear warnings in the case of basic auth via HTTP. Still, it is usually advised to avoid basic auth because there is no clear logout mechanism. Most people do not know how to logout from basic auth, so this can cause unauthorized access when another person gets access to the system. For the interested reader: to logout from basic auth, click on the lock before the url in your browser and click on clear cookies. Also, sessions are generally preferred over passwords since having a password allows access until a password is reset whereas sessions time out after a certain period.</p>
+<h2 id="htaccess"><a href="#htaccess" class="header-anchor">.htaccess</a></h2>
+<p>Secondly, a remark on <code>.htaccess</code> since this discussion comes up every time someone mentions authentication. <code>.htaccess</code> is a configuration file for Apache Web Servers which allows includes settings for password protection. That this method is based on a file is a problem in the case of static site hosters. Most most static site hosters assume that the to-be-published files are in a repository, so therefore using a <code>.htaccess</code> file means having to store secrets as text inside the repository. This is a problem. Also, <code>.htaccess</code> is based on passwords and not sessions which is a problem as is discussed above. So, in general, it is best to avoid using <code>.htaccess</code> files for static sites. This is also probably why most hosters do not support <code>.htaccess</code>.</p>
+<h2 id="gitlab_pages"><a href="#gitlab_pages" class="header-anchor">GitLab Pages</a></h2>
+<p>As far as I know, GitLab Pages is the easiest to setup. The service requires a free GitLab account and allows setting a complete web site to private. To configure access, specify one or more GitLab users and for how long they have access. Overall, I would say this is a great service. Unfortunately, in my case, not all readers had a GitLab account and the pages had a latency of 1-2 seconds upon each request &#40;which may of course be fixed at the time of reading&#41;. That is why I switched to Netlify.</p>
+<h2 id="netlify"><a href="#netlify" class="header-anchor">Netlify</a></h2>
+<p>Netlify offers two ways of authentication, namely a password / JWT secret or OAuth. This does require a Pro plan, which is 19 dollar per member per month at the time of writing. In about 40 minutes, I wasn&#39;t able to configure OAuth so I gave up on that and used password protection. This only allows setting one password for the whole site which is problematic when multiple people should get access. When multiple people share the same password, it is not possible to deny access to one person without changing the password for everyone. Irregardless of that minor problem which can probably be solved by taking another look at the OAuth feature, there is also the page loading speed problem here. Just like GitLab, each page had a latency of 1-2 seconds upon each request. Somewhere on a forum, I read that this is because Netlify uses only one server for password protected sites versus their usual content delivery network &#40;CDN&#41;. I&#39;ve tested from the Netherlands, so maybe the speed is better if you happen to live in the US. I didn&#39;t investigate this further because overall the service is pretty limited for 19 dollar per month. Hence, I started looking for alternatives again.</p>
+<h2 id="cloudflare"><a href="#cloudflare" class="header-anchor">Cloudflare</a></h2>
+<p>At the time of writing, I just moved to Cloudflare and I must say that this feels the most capable in regards to speed and security. In regards to the price, authentication is part of the free plan so that&#39;s great. The speed is excellent and logging in is possible via a One-time PIN and a Google ID and more providers are possible but these are the two that I&#39;ve used. Setting up authentication for a Cloudflare Pages site was a bit tricky. In the last part of this post, I&#39;ll walk through the configuration steps for setting up a private static website with a custom domain. Including the time needed to verify everything, this should take about an hour.</p>
+<p>Let&#39;s say that we&#39;re registering a <code>https://protected.example.com</code>. The workflow is as follows:</p>
+<ol>
+<li><p>Add a new Pages site and but don&#39;t put sensitive information on it yet. You can add access security policies in later steps. Say that the domain is <code>protected.2252142.pages.dev</code>.</p>
+</li>
+<li><p>After deployment, go to settings and click on &quot;Enable Access Policy&quot; for the Preview deployments. This adds an access policy to the Cloudflare Zero Trust environment at url <code>*.protected-2252142.pages.dev</code>, see below for more information.</p>
+</li>
+<li><p>Add an extra policy for the main deploys at <code>protected.2252142.pages.dev</code>.</p>
+</li>
+</ol>
+<p>Now, you should have the following Applications URLs listed under Access in Cloudflare Zero Trust. The names are arbitrary; I&#39;ve added some suggestions below. Correctness of the Policies and URLs is the most important.</p>
+<table><tr><th align="left">Application name</th><th align="left">Application URL</th><th align="right">Type</th></tr><tr><td align="left">protected.example.com - Previews</td><td align="left">*.protected.2252142.pages.dev</td><td align="right">self-hosted</td></tr><tr><td align="left">protected.example.com - Pages</td><td align="left">protected.2252142.pages.dev</td><td align="right">self-hosted</td></tr></table>
+<p>Please verify these settings for yourself after setting up your site. Once everything looks good, you can add your custom domain via the Pages settings. Now, logging in will not work yet for <code>protected.example.com</code> because a callback is missing. To fix this, we have to add an Application URL for the custom domain too, which gives as end-result:</p>
+<table><tr><th align="left">Application name</th><th align="left">Application URL</th><th align="right">Type</th></tr><tr><td align="left">protected.example.com - Previews</td><td align="left">*.protected.2252142.pages.dev</td><td align="right">self-hosted</td></tr><tr><td align="left">protected.example.com - Pages</td><td align="left">protected.2252142.pages.dev</td><td align="right">self-hosted</td></tr><tr><td align="left">protected.example.com</td><td align="left">protected.example.com</td><td align="right">self-hosted</td></tr></table>
+<p>And again, please verify that everything is correct by trying to login to the different domains in the incognito mode of your browser.</p>
+<p>In conclusion, compared to my previous Netlify setup, the end-result is now more quick, more secure, cheaper and easier to use.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

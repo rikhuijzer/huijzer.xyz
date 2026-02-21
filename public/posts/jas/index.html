@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Done with GitHub Actions Supply Chain Attacks - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Done with GitHub Actions Supply Chain Attacks" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="A new tool to install binaries or scripts from GitHub releases with SHA-256 hashes." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Done with GitHub Actions Supply Chain Attacks" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Done with GitHub Actions Supply Chain Attacks </h1> 
+   <span class="page-date"> 2025-04-05 </span> 
+</div>
+<div class="franklin-content">
+<p>Recently, there was another security incident with GitHub Actions. This time, an attacker managed to <a href="https://www.stepsecurity.io/blog/harden-runner-detection-tj-actions-changed-files-action-is-compromised">modify the <code>tj-actions/changed-files</code> action</a>. After the change, the action printed secrets to the logs which the attacker &#40;and anyone else&#41; could then scrape. More specifically, not only the most recent version, but &quot;<a href="https://www.stepsecurity.io/blog/harden-runner-detection-tj-actions-changed-files-action-is-compromised">most versions of <code>tj-actions/changed-files</code></a>&quot; were affected. For example,</p>
+<pre><code class="language-yml">- uses: tj-actions/changed-files@46</code></pre>
+<p>was affected because under the hood this pointed to <code>tj-actions/changed-files@46.0.1</code>, which the attacker modified &#40;see the <a href="https://github.com/tj-actions/changed-files/releases/tag/v46.0.1">warning in the 46.0.1 release notes</a>&#41;.</p>
+<p>However, even users who explicitly pinned the version to an older version were affected. For example,</p>
+<pre><code class="language-yml">- uses: tj-actions/changed-files@46.0.0</code></pre>
+<p>was also modified by the attacker &#40;see the <a href="https://github.com/tj-actions/changed-files/releases/tag/v46.0.0">warning in the 46.0.0 release notes</a>&#41;. These incidents are not new, it was discussed in <a href="https://www.paloaltonetworks.com/blog/cloud-security/github-actions-worm-dependencies/">2023</a> and I learned about a mitigation in <a href="https://github.com/julia-actions/cache/pull/106">2024</a> thanks to Sascha Mann.</p>
+<p>The mitigation is to pin the version to an explicit commit hash. After the attack, <code>changed-files</code> has now updated the <a href="https://github.com/tj-actions/changed-files">README</a> and asks users to do this:</p>
+<pre><code class="language-yml">- uses: tj-actions/changed-files@6cb76d07bee4c9772c6882c06c37837bf82a04d3 # v46</code></pre>
+<p>Pinning is a lot safer, but unfortunately Git at the time of writing still uses SHA-1. Although Git runs a hardened version of SHA-1, <a href="https://git-scm.com/docs/hash-function-transition">git-scm.com states that</a>:</p>
+<blockquote>
+<p>Thus it’s considered prudent to move past any variant of SHA-1 to a new hash. There’s no guarantee that future attacks on SHA-1 won’t be published in the future, and those attacks may not have viable mitigations.</p>
+</blockquote>
+<p>Furthermore, I personally dislike this hash pinning approach since it doesn&#39;t specify the version. That&#39;s why it is very common to see the version number specified in the comment, as is done here. The problem with this approach is that the comment can now become out of sync with the actual version.</p>
+<p>Another problem is that even the hash does not guarantee that the code executed by the action is the same. In theory, the action itself could pull code from another location and run that instead. On the one hand, this might sound a bit far fetched because it&#39;s in general problematic if an action pulls code from another location during runtime. On the other hand, if the action uses lots of dependencies, then it is hard to verify that none of the dependencies do this.</p>
+<p>In an attempt to mitigate these problems, I wrote a tool is inspired by the approach typically taken by build systems. In these systems, the maintainers allow files from other places to be included, but only if they specify a SHA-256 hash. For example, in NixOS the Kyocera printer driver is downloaded from their website, but the maintainers have <a href="https://github.com/NixOS/nixpkgs/blob/ea5787ad5291ee1c131326cb9c9fec03d359edff/pkgs/misc/cups/drivers/kyodialog3/default.nix">verified the SHA-256 hash</a>.</p>
+<pre><code class="language-nix">src &#61; fetchzip &#123;
+  url &#61; &quot;https://usa.kyoceradocumentsolutions.com/content/dam/kdc/kdag/downloads/technical/executables/drivers/kyoceradocumentsolutions/us/en/Kyocera_Linux_PPD_Ver_&#36;&#123;version&#125;.tar.gz&quot;;
+  sha256 &#61; &quot;11znnlkfssakml7w80gxlz1k59f3nvhph91fkzzadnm9i7a8yjal&quot;;
+&#125;;</code></pre>
+<p>For people unfamiliar with SHA-256 hashes, they are a way to verify that the file you download is exactly the same as the one the maintainers intended. SHA-256 is a cryptographic hash function that takes a file as input and produces a fixed-length hash. If the hash of the downloaded file matches the expected hash provided by the maintainers, we can be highly confident that the file has not been tampered with. This is because SHA-256 is currently <a href="https://crypto.stackexchange.com/questions/47809">considered collision-resistant</a>, making it computationally infeasible for an attacker to modify the file in a way that results in the same hash.</p>
+<p>This is the approach I took for my tool called &quot;just an installer&quot;: <a href="https://github.com/rikhuijzer/jas"><code>jas</code></a>. It is primarly meant to be used with GitHub Actions as a reliable way to install binary dependencies.</p>
+<p>For example, to install <a href="https://github.com/crate-ci/typos"><code>typos</code></a>, you can now write the following:</p>
+<pre><code class="language-yml">jobs:
+  typos:
+    runs-on: ubuntu-latest
+    if: github.event_name &#61;&#61; &#39;pull_request&#39;
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo install --debug jas@0.2.0
+      - run: &gt;
+          jas install
+          --gh crate-ci/typos@v1.31.1
+          --sha f683c2abeaff70379df7176110100e18150ecd17a4b9785c32908aca11929993
+          --gh-token &#36;&#123;&#123; secrets.GITHUB_TOKEN &#125;&#125;
+      - run: typos .</code></pre>
+<p>This will install <code>jas</code> via <code>cargo install</code> and then use it to download the <code>typos</code> binary from the GitHub release and install it.</p>
+<p>There are a few things to note here. You might notice that the <code>cargo install --debug jas@0.2.0</code> does not specify a hash. This is indeed not ideal yet, although it is a much lower risk than depending on GitHub Actions. You can verify the published code by running</p>
+<pre><code class="language-sh">curl -L &#39;https://crates.io/api/v1/crates/jas/0.2.0/download&#39; | tar -zxf -</code></pre>
+<p>this includes the source code as well as a <code>Cargo.lock</code> file with checksums for the dependencies. Unlike GitHub Releases, crates.io does not support modifying files after a release. Furthermore, in the jas repository, each night an <a href="https://github.com/rikhuijzer/jas/blob/main/.github/workflows/audit.yml">audit is run</a> to check for security vulnerabilities in the dependencies. Also, most of the dependencies that jas uses are also used inside Rust&#39;s bootstrapping phase so they should have a high security standard. The other dependencies are <code>clap</code>, <code>flate2</code>, <code>hex</code>, and <code>ureq</code>. These are well known crates so hopefully issues are caught early. Of course, if you have any suggestions for improvements, please let me know. In the long run, I hope to find an even better way to install the <code>jas</code> binary. &#40;Maybe distribute via Debian packages?&#41;</p>
+<p>You might have also noticed that I added the <code>--debug</code> flag to the <code>cargo install</code> command. This is to reduce compilation time.</p>
+<p>Finally, I added the <code>--gh-token</code> flag to pass the <code>GITHUB_TOKEN</code> to the <code>jas</code> binary. This is to avoid rate limiting when requesting which assets are available on a GitHub release. Locally, it should not be needed because you can make 60 requests per hour per IP address. It is also possible to avoid having to pass in the token by manually specifying the URL:</p>
+<pre><code class="language-sh">jas install \
+--url https://github.com/crate-ci/typos/releases/download/v1.31.1/typos-v1.31.1-x86_64-unknown-linux-musl.tar.gz \
+--sha f683c2abeaff70379df7176110100e18150ecd17a4b9785c32908aca11929993</code></pre>
+<p>If you now wonder how normal GitHub Actions avoid the problem of being rate limited, the answer is that they receive the <code>GITHUB_TOKEN</code> by default. From the <a href="https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication">docs</a>:</p>
+<blockquote>
+<p>An action can access the <code>GITHUB_TOKEN</code> through the <code>github.token</code> context even if the workflow does not explicitly pass the <code>GITHUB_TOKEN</code> to the action. As a good security practice, you should always make sure that actions only have the minimum access they require by limiting the permissions granted to the <code>GITHUB_TOKEN</code>.</p>
+</blockquote>
+<p>This is for example why</p>
+<pre><code class="language-yml">permissions:
+  contents: write
+
+jobs:
+  deploy:
+    steps:
+      - uses: JamesIves/github-pages-deploy-action@v4</code></pre>
+<p>can publish to GitHub Pages without needing to pass the <code>GITHUB_TOKEN</code> to the action.</p>
+<p>Finally something about the running time. In practice this tool takes about 30 seconds to compile and then can install binaries in a matter of seconds. For instance, running</p>
+<pre><code class="language-yml">- run: sudo apt-get install -y ffmpeg</code></pre>
+<p>takes about 25 seconds. With jas,</p>
+<pre><code class="language-yml">jas install
+--url https://www.johnvansickle.com/ffmpeg/old-releases/ffmpeg-6.0.1-amd64-static.tar.xz
+--sha 28268bf402f1083833ea269331587f60a242848880073be8016501d864bd07a5</code></pre>
+<p>takes about 10 seconds &#40;thanks to John Van Sickle for hosting the static binaries&#41;. This approach has the additional benefit that it is very clear which version of ffmpeg is being used.</p>
+<p>My hope is that this tool turns into a more reliable way to install binaries or scripts inside GitHub Actions. I&#39;m currently using this tool in my workflows and hope it is useful for you too. If you have any feedback or suggestions, please let me know in the <a href="https://github.com/rikhuijzer/jas">repository</a>.</p>
+<p><em>For comments on this post, see <a href="https://www.reddit.com/r/rust/comments/1jsob0f/done_with_github_actions_supply_chain_attacks/">Reddit</a> or <a href="https://lobste.rs/s/wyjtwq/done_with_github_actions_supply_chain">Lobsters</a>.</em></p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

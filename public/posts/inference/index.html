@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Optimizing Julia code - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Optimizing Julia code" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="How running time and time to first X can be reduced by fixing type inference problems." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Optimizing Julia code" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Optimizing Julia code </h1> 
+   <span class="page-date"> 2022-03-19 </span> 
+</div>
+<div class="franklin-content">
+<blockquote>
+<p>I&#39;m lately doing for the first time some optimizations of Julia code and I sort of find it super beautiful.</p>
+</blockquote>
+<p>This is how I started a message on the Julia language Slack in response to a question about why optimising Julia code is so difficult compared to other languages. In the message I argued against that claim. Optimising isn&#39;t hard in Julia if you compare it to Python or R where you have to be an expert in Python or R <strong>and</strong> C/C&#43;&#43;. Also, in that message I went through a high-level overview of how I approached optimising. The next day, Frames Catherine White, who is a true Julia veteran, suggested that I write a blog post about my overview, so here we are.</p>
+<p>In this blog post, I&#39;ll describe what <em>type stability</em> is and why it is important for performance. Unlike most other posts, I&#39;ll discuss it in the context of performance &#40;raw throughput&#41; and in the context of time to first X &#40;TTFX&#41;. Julia is sort of notorious for having really bad TTFX in certain cases. For example, creating a plot with the <a href="https://github.com/JuliaPlots/Makie.jl">Makie.jl</a> package takes 40 seconds at the time of writing. On the second call, it takes about 0.001 seconds. This blog post explains the workflow that you can use to reduce running time and TTFX.</p>
+<h2 id="type_stability"><a href="#type_stability" class="header-anchor">Type stability</a></h2>
+<p>Let&#39;s first talk about that <em>type stability</em> thing that everyone keeps talking about. Why is it important? To show this, let&#39;s write naive Julia code. Specifically, for this example, we write code which can hide the type from the compiler, that is, we need to add some kind of indirection so that the compiler cannot infer the types. This can be done via a dictionary. Note that our dictionary returns different types, namely an <code>Float32</code> and a <code>Float64</code>:</p>
+<pre><code class="language-julia">numbers &#61; Dict&#40;:one &#61;&gt; 1f0, :two &#61;&gt; 2.0&#41;;</code></pre>
+<pre><code class="language-julia">function double&#40;mapping, key::Symbol&#41;
+    return 2 * mapping&#91;key&#93;
+end;</code></pre>
+<p>This code works, we can pass <code>:one</code> or <code>:two</code> and the number will be doubled:</p>
+<pre><code class="language-julia">double&#40;numbers, :one&#41;</code></pre>
+<pre><code class="language-julia">2.0f0</code></pre>
+<pre><code class="language-julia">double&#40;numbers, :two&#41;</code></pre>
+<pre><code class="language-julia">4.0</code></pre>
+<p>Let&#39;s look at the optimized LLVM code via <code>@code_warntype</code>. Here, you can ignore the <code>with_terminal</code>; it&#39;s only needed because this blog post is running in a <a href="https://github.com/fonsp/Pluto.jl">Pluto.jl</a> notebook.</p>
+<pre><code class="language-raw">MethodInstance for double&#40;::Dict&#123;Symbol, AbstractFloat&#125;, ::Symbol&#41;
+  from double&#40;mapping, key::Symbol&#41; @ Main REPL&#91;2&#93;:1
+Arguments
+  #self#::Core.Const&#40;Main.double&#41;
+  mapping::Dict&#123;Symbol, AbstractFloat&#125;
+  key::Symbol
+Body::Any
+1 ─ &#37;1 &#61; Main.:*::Core.Const&#40;*&#41;
+│   &#37;2 &#61; Base.getindex&#40;mapping, key&#41;::AbstractFloat
+│   &#37;3 &#61; &#40;&#37;1&#41;&#40;2, &#37;2&#41;::Any
+└──      return &#37;3</code></pre>
+<p>When looking at this in a terminal, the <code>Any</code> type at line <code>&#37;3</code> and the <code>AbstractFloat</code> at line <code>&#37;2</code> are highlighted in red. Also, the <code>Any</code> behind <code>Body</code> is highlighted in red.</p>
+<p>Ouch. The optimized code looks quite good with one <code>Base.getindex</code> and a <code>2 * &#37;1</code>, but we do get some big red warnings about the output type which is an <code>Any</code>. That color indicates that something is wrong. What is wrong is that an <code>Any</code> type cannot easily be put into a memory spot. For a concrete type such as <code>Float64</code>, we know how much space we need so we don&#39;t need a pointer and we can even put the number nearer to the CPU so that it can quickly be accessed. To see whether a type is concrete, we can use <code>isconcretetype</code>:</p>
+<pre><code class="language-julia">isconcretetype&#40;Float64&#41;</code></pre>
+<pre><code class="language-julia">true</code></pre>
+<pre><code class="language-julia">isconcretetype&#40;AbstractFloat&#41;</code></pre>
+<pre><code class="language-julia">false</code></pre>
+<p>To make matters worse, Julia does a lot of optimizing, but it cannot do much for abstract types. For example, let&#39;s write two very simple functions:</p>
+<pre><code class="language-julia">function use_double&#40;mapping, x&#41;
+    doubled &#61; 2 * double&#40;mapping, x&#41;
+    string&#40;doubled&#41;
+end;</code></pre>
+<pre><code class="language-julia">use_double&#40;numbers, :one&#41;</code></pre>
+<pre><code class="language-julia">&quot;4.0&quot;</code></pre>
+<p>This is how the <code>@code_warntype</code> looks:</p>
+<pre><code class="language-julia">@code_warntype use_double&#40;numbers, :one&#41;</code></pre>
+<pre><code class="language-raw">MethodInstance for use_double&#40;::Dict&#123;Symbol, AbstractFloat&#125;, ::Symbol&#41;
+  from use_double&#40;mapping, x&#41; @ Main REPL&#91;4&#93;:1
+Arguments
+  #self#::Core.Const&#40;Main.use_double&#41;
+  mapping::Dict&#123;Symbol, AbstractFloat&#125;
+  x::Symbol
+Locals
+  doubled::Any
+Body::Any
+1 ─ &#37;1 &#61; Main.:*::Core.Const&#40;*&#41;
+│   &#37;2 &#61; Main.double&#40;mapping, x&#41;::Any
+│        &#40;doubled &#61; &#40;&#37;1&#41;&#40;2, &#37;2&#41;&#41;
+│   &#37;4 &#61; Main.string::Core.Const&#40;string&#41;
+│   &#37;5 &#61; doubled::Any
+│   &#37;6 &#61; &#40;&#37;4&#41;&#40;&#37;5&#41;::Any
+└──      return &#37;6</code></pre>
+<p>Here, the <code>Any</code> type at line <code>&#37;2</code>, <code>&#37;5</code>, and <code>&#37;6</code> are abstract types so in red when viewed in a terminal. Also, the <code>Any</code> behind <code>Body</code> is again highlighted in red. And the <code>doubled</code> local variable is red too.</p>
+<p>The <code>Any</code> type propagated. Now, also the <code>use_naive_double</code> function has an <code>Any</code> output type. <strong>And</strong>, the type of the variable <code>doubled</code> isn&#39;t known when the function is compiled meaning that the call <code>string&#40;doubled&#41;</code> ends up being a <em>runtime dispatch</em>. This means that Julia has to lookup the right method during running time in the method lookup table. If the type was known, Julia would just hardcode the link to the right method and thus avoid a method table lookup or it would just copy-paste the content of the function to avoid jumping at all. This is called inlining.</p>
+<p>To see that in action, let&#39;s go on a little digression and take a look at optimised code for the case when the types <strong>are</strong> known. For this, consider two simple functions:</p>
+<pre><code class="language-julia">inner&#40;x&#41; &#61; 2 * x;</code></pre>
+<pre><code class="language-julia">outer&#40;x&#41; &#61; 3 * inner&#40;x&#41;;</code></pre>
+<p>We can now call this for, say an <code>Int</code> and get an output:</p>
+<pre><code class="language-julia">outer&#40;2&#41;</code></pre>
+<pre><code class="language-julia">12</code></pre>
+<p>Let&#39;s look at the LLVM code for this function:</p>
+<pre><code class="language-julia">@code_llvm outer&#40;2&#41;</code></pre>
+<pre><code class="language-raw">; Function Signature: outer&#40;Int64&#41;
+;  @ REPL&#91;8&#93;:1 within &#96;outer&#96;
+define i64 @julia_outer_2413&#40;i64 signext &#37;&quot;x::Int64&quot;&#41; #0 &#123;
+top:
+; ┌ @ int.jl:88 within &#96;*&#96;
+   &#37;0 &#61; mul i64 &#37;&quot;x::Int64&quot;, 6
+   ret i64 &#37;0
+; └
+&#125;</code></pre>
+<p>Hopefully, you&#39;re now thinking &quot;WOW&#33;&quot;. The compiler figured out that <code>inner</code> is just <code>2 * x</code> so there is no need to step into that function, we can just calculate <code>2 * x</code> directly. But then, it figures out that <code>2 * 3 * x &#61; 6 * x</code>, so we can get the answer in <strong>one</strong> LLVM instruction.</p>
+<p>On the other hand, what if we add a <code>Base.inferencebarrier</code> to block inference inside the outer function:</p>
+<pre><code class="language-julia">blocked_outer&#40;x&#41; &#61; 3 * inner&#40;Base.inferencebarrier&#40;x&#41;&#41;;</code></pre>
+<pre><code class="language-julia">@code_llvm blocked_outer&#40;2&#41;</code></pre>
+<pre><code class="language-raw">; Function Signature: blocked_outer&#40;Int64&#41;
+;  @ REPL&#91;10&#93;:1 within &#96;blocked_outer&#96;
+define nonnull ptr @julia_blocked_outer_2429&#40;i64 signext &#37;&quot;x::Int64&quot;&#41; #0 &#123;
+top:
+  &#37;jlcallframe1 &#61; alloca &#91;2 x ptr&#93;, align 8
+  &#37;gcframe2 &#61; alloca &#91;3 x ptr&#93;, align 16
+  call void @llvm.memset.p0.i64&#40;ptr align 16 &#37;gcframe2, i8 0, i64 24, i1 true&#41;
+  &#37;pgcstack &#61; call ptr inttoptr &#40;i64 6655373676 to ptr&#41;&#40;i64 261&#41; #8
+  store i64 4, ptr &#37;gcframe2, align 16
+  &#37;task.gcstack &#61; load ptr, ptr &#37;pgcstack, align 8
+  &#37;frame.prev &#61; getelementptr inbounds ptr, ptr &#37;gcframe2, i64 1
+  store ptr &#37;task.gcstack, ptr &#37;frame.prev, align 8
+  store ptr &#37;gcframe2, ptr &#37;pgcstack, align 8
+  &#37;box_Int64 &#61; call nonnull align 8 dereferenceable&#40;8&#41; ptr @ijl_box_int64&#40;i64 signext &#37;&quot;x::Int64&quot;&#41; #2
+  &#37;gc_slot_addr_0 &#61; getelementptr inbounds ptr, ptr &#37;gcframe2, i64 2
+  store ptr &#37;box_Int64, ptr &#37;gc_slot_addr_0, align 16
+  store ptr &#37;box_Int64, ptr &#37;jlcallframe1, align 8
+  &#37;0 &#61; call nonnull ptr @ijl_apply_generic&#40;ptr nonnull @&quot;jl_global#2433.jit&quot;, ptr nonnull &#37;jlcallframe1, i32 1&#41;
+  store ptr &#37;0, ptr &#37;gc_slot_addr_0, align 16
+  store ptr @&quot;jl_global#2436.jit&quot;, ptr &#37;jlcallframe1, align 8
+  &#37;1 &#61; getelementptr inbounds ptr, ptr &#37;jlcallframe1, i64 1
+  store ptr &#37;0, ptr &#37;1, align 8
+  &#37;2 &#61; call nonnull ptr @ijl_apply_generic&#40;ptr nonnull @&quot;jl_global#2435.jit&quot;, ptr nonnull &#37;jlcallframe1, i32 2&#41;
+  &#37;frame.prev7 &#61; load ptr, ptr &#37;frame.prev, align 8
+  store ptr &#37;frame.prev7, ptr &#37;pgcstack, align 8
+  ret ptr &#37;2
+&#125;</code></pre>
+<p>To see the difference in running time, we can compare the output <code>@benchmark</code> for both:</p>
+<pre><code class="language-julia">using BenchmarkTools: @benchmark</code></pre>
+<pre><code class="language-julia">@benchmark outer&#40;2&#41;</code></pre>
+<pre><code class="language-raw">BenchmarkTools.Trial: 10000 samples with 1000 evaluations.
+ Range &#40;min … max&#41;:  1.840 ns … 39.890 ns  ┊ GC &#40;min … max&#41;: 0.00&#37; … 0.00&#37;
+ Time  &#40;median&#41;:     3.070 ns              ┊ GC &#40;median&#41;:    0.00&#37;
+ Time  &#40;mean ± σ&#41;:   3.123 ns ±  1.198 ns  ┊ GC &#40;mean ± σ&#41;:  0.00&#37; ± 0.00&#37;
+
+                                               ▄█▄▇▃          
+  ▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▂▂▂▃▂▃▃▃▄▅▅▇▆█████▆▆▃▃▃▂▂▂ ▃
+  1.84 ns        Histogram: frequency by time        3.36 ns &lt;
+
+ Memory estimate: 0 bytes, allocs estimate: 0.</code></pre>
+<pre><code class="language-julia">@benchmark blocked_outer&#40;2&#41;</code></pre>
+<pre><code class="language-raw">BenchmarkTools.Trial: 10000 samples with 988 evaluations.
+ Range &#40;min … max&#41;:  46.660 ns … 195.516 ns  ┊ GC &#40;min … max&#41;: 0.00&#37; … 0.00&#37;
+ Time  &#40;median&#41;:     57.996 ns               ┊ GC &#40;median&#41;:    0.00&#37;
+ Time  &#40;mean ± σ&#41;:   59.208 ns ±   5.836 ns  ┊ GC &#40;mean ± σ&#41;:  0.00&#37; ± 0.00&#37;
+
+                  ▁▅▆██▇▇▄▁                                     
+  ▁▁▁▁▁▁▁▂▂▂▂▃▃▄▅▇█████████▆▄▃▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▂▁▂▂▂▂▂▂▂▁▁ ▃
+  46.7 ns         Histogram: frequency by time         79.3 ns &lt;
+
+ Memory estimate: 0 bytes, allocs estimate: 0.</code></pre>
+<p>So, even though benchmarks below 1 ns aren&#39;t reliable, we can see that the inferable function &#40;<code>outer</code>&#41; is much faster. Next, we&#39;ll show that this is not all due to having the extra call to <code>Base.inferencebarrier</code>.</p>
+<p>We&#39;ve seen that knowing the types is important for the compiler, so let&#39;s improve the type inference for the function above. We could fix it in a few ways. We could add a type hint at the function. For example, a type hint could look like this:</p>
+<pre><code class="language-julia">function with_type_hint&#40;x&#41;
+    Base.inferrencebarrier&#40;x&#41;::Int
+end;</code></pre>
+<p>With this, the output type of the function body is known:</p>
+<pre><code class="language-julia">@code_warntype with_type_hint&#40;1&#41;</code></pre>
+<pre><code class="language-raw">MethodInstance for with_type_hint&#40;::Int64&#41;
+  from with_type_hint&#40;x&#41; @ Main REPL&#91;12&#93;:1
+Arguments
+  #self#::Core.Const&#40;Main.with_type_hint&#41;
+  x::Int64
+Body::Int64
+1 ─ &#37;1 &#61; Base.inferrencebarrier::Any
+│   &#37;2 &#61; &#40;&#37;1&#41;&#40;x&#41;::Any
+│   &#37;3 &#61; Main.Int::Core.Const&#40;Int64&#41;
+│   &#37;4 &#61; Core.typeassert&#40;&#37;2, &#37;3&#41;::Int64
+└──      return &#37;4</code></pre>
+<p>which solves further inference problems if we use this method, but it is a bit risky. The <code>Core.typeassert</code> will assert the type and throw an error if the type turns out to be wrong. This hinders writing generic code. Also, it takes the system a little bit of time to actually assert the type.</p>
+<p>So, instead it would be better to go to the root of the problem. Above, we had a dictionary <code>numbers</code>:</p>
+<pre><code class="language-julia">numbers</code></pre>
+<pre><code class="language-raw">Dict&#123;Symbol, AbstractFloat&#125; with 2 entries:
+  :two &#61;&gt; 2.0
+  :one &#61;&gt; 1.0</code></pre>
+<p>The type is:</p>
+<pre><code class="language-julia">typeof&#40;numbers&#41;</code></pre>
+<pre><code class="language-raw">Dict&#123;Symbol, AbstractFloat&#125;</code></pre>
+<p>Where <code>AbstractFloat</code> is a abstract &#40;non-concrete&#41; type meaning that it cannot have direct instance values, and more importantly meaning <strong>that we cannot say with certainty which method should be called for an object of such a type</strong>.</p>
+<p>We can make this type concrete by manually specifying the type of the dictionary. Now, Julia will automatically convert our <code>Float32</code> to a <code>Float64</code>:</p>
+<pre><code class="language-julia">typednumbers &#61; Dict&#123;Symbol, Float64&#125;&#40;:one &#61;&gt; 1f0, :two &#61;&gt; 2.0&#41;;</code></pre>
+<p>Let&#39;s look again to the <code>@code_warntype</code>:</p>
+<pre><code class="language-julia">@code_warntype use_double&#40;typednumbers, :one&#41;</code></pre>
+<pre><code class="language-raw">MethodInstance for use_double&#40;::Dict&#123;Symbol, Float64&#125;, ::Symbol&#41;
+  from use_double&#40;mapping, x&#41; @ Main REPL&#91;4&#93;:1
+Arguments
+  #self#::Core.Const&#40;Main.use_double&#41;
+  mapping::Dict&#123;Symbol, Float64&#125;
+  x::Symbol
+Locals
+  doubled::Float64
+Body::String
+1 ─ &#37;1 &#61; Main.:*::Core.Const&#40;*&#41;
+│   &#37;2 &#61; Main.double&#40;mapping, x&#41;::Float64
+│        &#40;doubled &#61; &#40;&#37;1&#41;&#40;2, &#37;2&#41;&#41;
+│   &#37;4 &#61; Main.string::Core.Const&#40;string&#41;
+│   &#37;5 &#61; doubled::Float64
+│   &#37;6 &#61; &#40;&#37;4&#41;&#40;&#37;5&#41;::String
+└──      return &#37;6</code></pre>
+<p>Great&#33; None of the types are red &#40;abstract&#41; when shown in a terminal. So, this is now exactly the same function as above, but all the types are concrete and the compiler is happy.</p>
+<p>Let&#39;s run the benchmarks for both <code>numbers</code> and <code>typednumbers</code>:</p>
+<pre><code class="language-julia">@benchmark use_double&#40;numbers, :one&#41;</code></pre>
+<pre><code class="language-raw">BenchmarkTools.Trial: 10000 samples with 434 evaluations.
+ Range &#40;min … max&#41;:  207.373 ns …  34.702 μs  ┊ GC &#40;min … max&#41;: 0.00&#37; … 98.86&#37;
+ Time  &#40;median&#41;:     274.493 ns               ┊ GC &#40;median&#41;:    0.00&#37;
+ Time  &#40;mean ± σ&#41;:   299.830 ns ± 478.759 ns  ┊ GC &#40;mean ± σ&#41;:  5.18&#37; ±  3.92&#37;
+
+                   ▂▄▆█▆▂                                        
+  ▁▃▂▂▂▂▂▂▂▂▂▃▃▄▅▇▇██████▅▃▃▃▃▃▃▃▄▄▄▄▄▄▃▃▃▂▂▂▂▁▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁ ▃
+  207 ns           Histogram: frequency by time          404 ns &lt;
+
+ Memory estimate: 168 bytes, allocs estimate: 5.</code></pre>
+<pre><code class="language-julia">@benchmark use_double&#40;typednumbers, :one&#41;</code></pre>
+<pre><code class="language-raw">BenchmarkTools.Trial: 10000 samples with 867 evaluations.
+ Range &#40;min … max&#41;:  125.767 ns …  16.412 μs  ┊ GC &#40;min … max&#41;:  0.00&#37; … 98.36&#37;
+ Time  &#40;median&#41;:     168.858 ns               ┊ GC &#40;median&#41;:     0.00&#37;
+ Time  &#40;mean ± σ&#41;:   209.523 ns ± 328.130 ns  ┊ GC &#40;mean ± σ&#41;:  15.29&#37; ± 11.09&#37;
+
+  ▅█▅▁  ▂▂                                                      ▁
+  ████▇███▆▄▃▁▃▅▄▁▁▁▁▁▃▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▃▃▁▅▄▃▅▄▄▃▄▅▄▄▄▄▄▅▃▅▅ █
+  126 ns        Histogram: log&#40;frequency&#41; by time       1.97 μs &lt;
+
+ Memory estimate: 432 bytes, allocs estimate: 3.</code></pre>
+<p>So, that&#39;s a reduction in running time which we basically got for free. The only thing we needed to do was look through our naive code and help out the compiler a bit by adding more information.</p>
+<p>And this is exactly what I find so beautiful about the Julia language. You have this high-level language where you can be very expressive, write in whatever style you want and don&#39;t have to bother about putting type annotations on all your functions. Instead, you first focus on your proof of concept and get your code working and only <strong>then</strong> you start digging into optimizing your code. To do this, you can often get pretty far already by looking at <code>@code_warntype</code>.</p>
+<p>But, what if your code contains more than a few functions? Let&#39;s take a look at some of the available tooling.</p>
+<h2 id="tooling"><a href="#tooling" class="header-anchor">Tooling</a></h2>
+<p>The most common tool for improving performance is a profiler. Julia has a profiler in the standard library:</p>
+<pre><code class="language-julia">using Profile</code></pre>
+<p>This is a sampling-based profiler meaning that it takes samples to estimate how much time is spent in each function.</p>
+<pre><code class="language-julia">@profile foreach&#40;x -&gt; blocked_outer&#40;2&#41;, 1:100&#41;</code></pre>
+<p>We can now call <code>Profile.print&#40;&#41;</code> to see the output and how many samples were taken in each function. However, in most cases we want to have a nice plot. Here, I use <a href="https://github.com/kimikage/ProfileSVG.jl">ProfileSVG.jl</a>, but other options are also listed in the <a href="https://docs.julialang.org/en/v1/manual/profile/">Julia Profiling documentation</a>. See especially <a href="https://github.com/JuliaPerf/PProf.jl">PProf.jl</a> since that viewer can show graphs as well as flame graphs.</p>
+<pre><code class="language-julia">using ProfileSVG: @profview</code></pre>
+<pre><code class="language-julia">@profview foreach&#40;x -&gt; blocked_outer&#40;2&#41;, 1:10_000_000&#41;</code></pre>
+<p><img src="/assets/inference/profile.svg" alt="Profile" /></p>
+<p>The idea in this plot is that the wider a block, the more time is spent on it. Also, blocks which lay on top of other block indicate that they were called inside the outer block. As can be seen, the profiler is very useful to get an idea of which function takes the most time to run. In this case, most of the time is actually spent in Julia&#39;s <code>eval</code> logic. When going up to see where the time is spent, we see that it&#39;s mostly spent inside <code>blocked_outer</code>. Given that <code>foreach</code> is not much wider, for example, we can see that the logic for the loop itself is not taking much time.</p>
+<p>However, this doesn&#39;t tell us <strong>what</strong> is happening exactly. For that, we need to dive deeper and look critically at the source code of the function which takes long. Sometimes, that already provides enough information to see what can be optimized. In other cases, the problem isn&#39;t so obvious. Probably, there is a type inference problem because that can make huge differences as is shown in the section above. One way would then be to go to the function which takes the most time to run and see how the type inference looks via <code>@code_warntype</code>. Unfortunately, this can be a bit tricky. Consider, for example, a function with keyword arguments:</p>
+<pre><code class="language-julia">with_keyword_arguments&#40;a; b&#61;3&#41; &#61; a &#43; b;</code></pre>
+<pre><code class="language-julia">@code_warntype with_keyword_arguments&#40;1&#41;</code></pre>
+<pre><code class="language-raw">MethodInstance for with_keyword_arguments&#40;::Int64&#41;
+  from with_keyword_arguments&#40;a; b&#41; @ Main REPL&#91;9&#93;:1
+Arguments
+  #self#::Core.Const&#40;Main.with_keyword_arguments&#41;
+  a::Int64
+Body::Int64
+1 ─ &#37;1 &#61; Main.:&#40;var&quot;#with_keyword_arguments#3&quot;&#41;::Core.Const&#40;Main.var&quot;#with_keyword_arguments#3&quot;&#41;
+│   &#37;2 &#61; &#40;&#37;1&#41;&#40;3, #self#, a&#41;::Int64
+└──      return &#37;2</code></pre>
+<p>Here, we don&#39;t see the <code>a &#43; b</code> as we would expect, but instead see that the <code>with_keyword_arguments</code> calls another function without keyword arguments. Now, we would need to manually call this nested function with a generated name <code>var&quot;#with_keyword_arguments#1&quot;</code> with exactly the right inputs to see what <code>@code_warntype</code> does exactly inside this function. Even worse, imagine that you have a function which calls a function which calls a function...</p>
+<p>To solve this, there is <a href="https://github.com/JuliaDebug/Cthulhu.jl">Cthulhu.jl</a>. With Cthulhu, it is possible to <code>@descend</code> into a function and see the code warntype. Next, the arrow keys and enter can be used to step into a function and see the code warntype for that. By continuously stepping into and out of functions, it is much easier to see what code is calling what and where exactly the type inference starts to fail. Often, by solving a type inference problem at exactly the right spot, inference problems for a whole bunch of functions can be fixed. For more information about Cthulhu, see the GitHub page linked above.</p>
+<p>A complementary tool to find the root of type problems is <a href="https://github.com/aviatesk/JET.jl">JET.jl</a>. Basically, this tool can automate the process described above. It relies on Julia&#39;s compiler and can point to the root of type inference problems. Let&#39;s do a demo. Here, we use the optimization analysis:</p>
+<pre><code class="language-julia">using JET: @report_opt</code></pre>
+<pre><code class="language-julia">@report_opt blocked_outer&#40;2&#41;</code></pre>
+<pre><code class="language-raw">═════ 2 possible errors found ═════
+┌ blocked_outer&#40;x::Int64&#41; @ Main ./REPL&#91;4&#93;:1
+│ runtime dispatch detected: inner&#40;&#37;1::Any&#41;::Any
+└────────────────────
+┌ blocked_outer&#40;x::Int64&#41; @ Main ./REPL&#91;4&#93;:1
+│ runtime dispatch detected: &#40;3 * &#37;2::Any&#41;::Any
+└────────────────────</code></pre>
+<p>In this case, the tool points out exactly the problem we&#39;ve had. Namely, because the function definition is <code>3 * inner&#40;Base.inferencebarrier&#40;x&#41;&#41;</code>, the <code>inner</code> function call cannot be optimized because the type is unknown at that point. Also, the output of <code>inner&#40;Base.inferencebarrier&#40;x&#41;&#41;</code> is unkown and we have another runtime dispatch.</p>
+<p>For extremely long outputs, it can be useful to print the output of JET to a file to easily navigate through the output.</p>
+<p>These are the most important tools to improve performance. If this is all you care about, then feel free to stop reading here. In the next section, let&#39;s take a look at how to reduce the time to first X.</p>
+<h2 id="precompilation"><a href="#precompilation" class="header-anchor">Precompilation</a></h2>
+<p>As described above, Julia does lots of optimizations on your code. For example, it removes unnecessary function calls and hardcodes method calls if possible. This takes time and that is a problem. Like said above, Makie runs extremely quick after the first time that you have created a plot going from 40 seconds to something like 0.001 seconds. And, we need to wait all these seconds every time that we restart Julia. Of course, Julia developers don&#39;t develop by changing their plotting code and wait 40 seconds to see the output. We use tools such as <a href="https://github.com/fonsp/Pluto.jl">Pluto.jl</a> or <a href="https://github.com/timholy/Revise.jl">Revise.jl</a> to use code changes without restarting Julia. Still, sometimes it is necessary to restart Julia, so what can we do to reduce the compilation time?</p>
+<p>Well, we can reduce the compilation time by shouting <strong>I am the compiler now&#33;</strong> and write optimized code manually. For example, this is done in <a href="https://github.com/SciML/OrdinaryDiffEq.jl/pull/1465">OrdinaryDiffEq.jl#1465</a>. In some cases, this can be a great last-resort solution to make some compilation time disappear.</p>
+<p>However, it is quite laborious and not suitable in all cases. A very nice alternative idea is to move the compilation time into the <em>precompilation</em> stage. Precompilation occurs right after package installation or when loading a package after it has been changed. The results of this compilation are retained even after restarting the Julia instance. So, instead of having to compile things for each restart, we just compile it only when changing the package&#33; Sounds like a good deal.</p>
+<p>It is a good deal. Except, we have to note that we&#39;re working with the Julia language. Not all functions have typed arguments let alone concretely typed arguments, so the precompile phase cannot always know <strong>what</strong> it should compile. Even more, Julia by default doesn&#39;t compile all functions with concretely typed arguments. It just assumes that some function will probably not be used, so no need to precompile it. This is on purpose, to avoid developers putting concrete types everywhere which would make Julia packages less composable which is a very fair argument.</p>
+<p>Anyway, we can fix this by adding precompile directives ourselves. For example, we can create a new function, call <code>precompile</code> on it for integers and look at the existing method specializations:</p>
+<pre><code class="language-julia">add_one&#40;x&#41; &#61; x &#43; 1
+precompile&#40;add_one, &#40;Int,&#41;&#41;
+methods&#40;add_one&#41;&#91;1&#93;.specializations</code></pre>
+<pre><code class="language-raw">MethodInstance for Main.var&quot;workspace#7&quot;.add_one&#40;::Int64&#41;</code></pre>
+<p>A method specialization is just another way of saying a compiled instance for a method. So, a specialization is always for some concrete types. This method specialization shows that <code>add_one</code> is compiled even though we haven&#39;t called <code>add_one</code> yet. The function is completely ready for use for integers. If we pass another type, the function would still need to compile.</p>
+<p>What is nice about this is that the <code>precompile</code> will compile everything recursively. So, say, we have a large codebase handling some kind of notebooks and the package has some kind of <code>open</code> function with concrete types such as a <code>ServerSession</code> to open the notebook into and a <code>String</code> with the path for the notebook location, then we can add a precompile on that function as follows:</p>
+<pre><code class="language-julia">precompile&#40;open, &#40;ServerSession, String&#41;&#41;</code></pre>
+<p>Inside this large codebase. Since the <code>open</code> function is calling many other functions, the <code>precompile</code> will compile many functions and can reduce the time to first X by a lot. This is what happened in <a href="https://github.com/fonsp/Pluto.jl/pull/1934">Pluto.jl#1934</a>. We&#39;ve added <strong>one line of code</strong> to reduce the time to first open a notebook from 11 to 8 seconds. That is a 30&#37; reduction in running time by adding one line of code. To figure out where you need to add precompile directives exactly, you can use <a href="https://github.com/timholy/SnoopCompile.jl">SnoopCompile.jl</a>.</p>
+<p>Alas, now you probably wonder why we didn&#39;t have a 100&#37; reduction. The answer is type inference. <code>precompile</code> will go through all the functions recursively but once the type becomes non-concrete, it cannot know what to compile. To fix this, we can use the tools presented above to fix type inference problems.</p>
+<p>In conclusion, this is what I find so beautiful about the language. You can hack your proof-of-concept together in very naive ways and then throw on a few precompiles if you want to reduce the TTFX. Then, once you need performance, you can pinpoint what method takes the most time, look at the generated LLVM code and start fixing problems such as type inference. Improving the inferability will often make code more readable, it will reduce running time <strong>and</strong> it will reduce time to first X; all at the same time.</p>
+<h2 id="acknowledgements"><a href="#acknowledgements" class="header-anchor">Acknowledgements</a></h2>
+<p>Thanks to <a href="https://github.com/heltonmc">Michael Helton</a>, <a href="https://github.com/rfourquet">Rafael Fourquet</a> and <a href="https://gdalle.github.io/">Guillaume Dalle</a> for providing feedback on this blog post.</p>
+<h2 id="appendix"><a href="#appendix" class="header-anchor">Appendix</a></h2>
+<p>This post was built with Julia 1.11.3 and</p>
+<p>BenchmarkTools 1.5.0 <br />JET 0.9.12 <br />PlutoUI 0.7.60 <br />Profile 1.11.0 <br />ProfileSVG 0.2.2 </p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

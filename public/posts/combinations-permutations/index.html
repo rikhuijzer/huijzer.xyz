@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Combinations and permutations - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Combinations and permutations" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Deriving the equations for combinations and permutations." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Combinations and permutations" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Combinations and permutations </h1> 
+   <span class="page-date"> 2020-06-28 </span> 
+</div>
+<div class="franklin-content">
+<p>Counting is simple except when there is a lot to be counted. Combinations and permutations are such a case; they are about counting without replacement. Suppose we want to count the number of possible results we can obtain from picking \(k\) numbers, without replacement, from an equal or larger set of numbers, that is, from \(n\) where \(k \leq n\). When the same set of numbers in different orders should be counted separately, then the count is called the number of <em>permutations</em>. So, if we have some set of numbers and shuffle some numbers around, then we say that the numbers are <strong>permuted</strong>. When the same set of numbers in different orders should be counted only once, then the count is called the number of <em>combinations</em>. Which makes sense since it is only about the <strong>combination</strong> of numbers and not the order.</p>
+<p>The equations for permutations and combinations can be derived as follows: We can depict this little universe \(U\) containing \(n\) numbers as</p>
+\[ U = \{ 1, ..., n \} \]
+<p>and the set of \(k\) drawn numbers as</p>
+\[ S_a = \{ s_1, ..., s_{k} \}. \]
+<p>We could split \(U\) up into \(U_a\) and \(U_b\) since we know that \(k \leq n\), </p>
+\[ U_a = \{ 1, ..., k \}, U_b = \{ k+1, ..., n \} \]
+<p>and define \(S\) to be the union of \(S_a\) and \(S_b\) such that \(|S| = |U| = n\),</p>
+\[ S_a = \{ s_1, ..., s_k \}, S_b = \{ s_{k+1}, ..., s_n \}. \]
+<p>For the number of permutations, denoted by \(P^n_k\), let us fill \(S\) by drawing numbers from \(U\). Then, observe that to fill \(s_1\) we can pick from \(n\) numbers. To fill \(s_2\) we can pick from \(n - 1\) numbers. Continuing this, we can fill \(S\) in \(n \cdot (n - 1) \cdot \cdot \cdot 0 = n!\) different ways &#40;where the order is important&#41;. However, this was not the original goal. Instead, we want to fill only \(S_a\). To this end, remove all the possibilities from \(S_b\). Note that \(|S_a| = k\) and \(|S_b| = n - k\). So, the number of permutations is given by,</p>
+\[ P^n_k = \frac{n!}{(n-k)!}. \]
+<p>For the number of combinations, denoted by \(C^n_k\) or \({n\choose k}\), we expect a smaller number of total possibilities since we ignore different orderings. This smaller number is simply all the possible orderings for \(S_a\), that is, \(k!\). So, the number of combinations is given by</p>
+\[ C^n_k = {n\choose k} = \frac{n!}{k!(n-k)!}. \]
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

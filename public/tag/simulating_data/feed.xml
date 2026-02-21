@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<rss version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:georss="http://www.georss.org/georss">
+
+  <channel>
+    <title>
+      <![CDATA[  Rik Huijzer  ]]>
+    </title>
+    <link> https://huijzer.xyz </link>
+    <description>
+      <![CDATA[  A blog about statistics, programming and more  ]]>
+    </description>
+    <atom:link
+      href="https://huijzer.xyz/feed.xml"
+      rel="self"
+      type="application/rss+xml" />
+
+
+<item>
+  <title>
+    <![CDATA[  The principle of maximum entropy  ]]>
+  </title>
+  <link> https://huijzer.xyz/posts/maximum-entropy/index.html </link>
+  <guid> https://huijzer.xyz/posts/maximum-entropy/index.html </guid>
+  <description>
+    <![CDATA[  Obtaining the least informative distribution.  ]]>
+  </description>  
+    
+  <pubDate>Sat, 21 Feb 2026 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Rik Huijzer</atom:name>
+  </atom:author>
+        
+</item>
+
+<item>
+  <title>
+    <![CDATA[  Random forest classification in Julia  ]]>
+  </title>
+  <link> https://huijzer.xyz/posts/random-forest/index.html </link>
+  <guid> https://huijzer.xyz/posts/random-forest/index.html </guid>
+  <description>
+    <![CDATA[  Fitting a random forest classifier and reporting accuracy metrics.  ]]>
+  </description>  
+    
+  <pubDate>Sat, 21 Feb 2026 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Rik Huijzer</atom:name>
+  </atom:author>
+        
+</item>
+
+<item>
+  <title>
+    <![CDATA[  Simple and binary regression  ]]>
+  </title>
+  <link> https://huijzer.xyz/posts/regression/index.html </link>
+  <guid> https://huijzer.xyz/posts/regression/index.html </guid>
+  <description>
+    <![CDATA[  Applying a simple and binary &#40;logistic&#41; regression to simulated data.  ]]>
+  </description>  
+    
+  <pubDate>Sat, 21 Feb 2026 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Rik Huijzer</atom:name>
+  </atom:author>
+        
+</item>
+
+<item>
+  <title>
+    <![CDATA[  Random forest, Shapley values and multicollinearity  ]]>
+  </title>
+  <link> https://huijzer.xyz/posts/shapley/index.html </link>
+  <guid> https://huijzer.xyz/posts/shapley/index.html </guid>
+  <description>
+    <![CDATA[  How well do Shapley values and decision-tree-based models deal with multicollinearity?  ]]>
+  </description>  
+    
+  <pubDate>Sat, 21 Feb 2026 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Rik Huijzer</atom:name>
+  </atom:author>
+        
+</item>
+</channel></rss>

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> AI learning rate and some thoughts - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="AI learning rate and some thoughts" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Thinking about solar, battery, chip, and AI cost reduction rates." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="AI learning rate and some thoughts" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> AI learning rate and some thoughts </h1> 
+   <span class="page-date"> 2025-01-31 </span> 
+</div>
+<div class="franklin-content">
+<p>Now that DeepSeek released their new model, I&#39;m thinking again about where AI is heading. For some technologies such as electric cars or batteries, I think I have a reasonable idea of where they are heading thanks to <a href="https://ourworldindata.org/learning-curve">learning curves</a>. Due to price decreases, we will probably see more electric cars, drones, <a href="https://www.sustainable-ships.org/stories/2021/worlds-first-electric-cargo">ships</a>, and <a href="https://www.youtube.com/@electrictrucker">trucks</a>. Oh, and of course stoves that can <a href="https://youtu.be/YdawGen0QPc">boil water in 40 seconds</a>. For AI, I&#39;m not sure. In this blog post, I&#39;ll try to estimate the learning curve for AI and see if I can use that to make predictions.</p>
+<p>Learning curves, also known as <em>Wright&#39;s Law</em>, describe the phenomenon that for some technologies the cost decreases as the number of units produced increases. One of the most famous examples is the cost of computer chips also known as Moore&#39;s Law. Although Moore&#39;s Law is often associated with the number of transistors on a chip, it is actually about cost as well. From the <a href="https://cse.buffalo.edu/~bina/amrita/summer2017/CSE541/Day1/moorePaper.pdf">paper</a> by Gordon E. Moore:</p>
+<blockquote>
+<p>&quot;In 1970, the manufacturing cost per component can be expected to be only a tenth of the present cost.&quot;</p>
+</blockquote>
+<p>And Moore was right. In 1961, the price per floating point operation was about &#36;190 billion in inflation-adjusted dollars. In 2023, the price for a floating point operation was about &#36;0.0125. That means that the price went down by about 13 orders of magnitude.</p>
+<p>Furthermore, while the price went down, the quality went up. Modern processors are less likely to break down and are more energy efficient.</p>
+<p>Another recent example is solar panels. This is what happened to the price of solar panels:</p>
+<p><img src="/assets/battery-learning-curves/solar-pv-prices.svg" alt="Solar PV prices versus cumulative capacity" /></p>
+<p>From 2000 to 2023, the price of solar panels has decreased from about 7 &#36;/W to 0.3 &#36;/W. To some, this might sound like a small difference compared to the step from 100 &#36;/W to 10 &#36;/W, but those absolute numbers are not the best way to compare the two. Instead, think about how much panels you can buy for a real-world use-case. For example, a house typically has about 8 kW of solar panels. In 2000 this would cost about 7 &#36;/W * 8 kW &#61; &#36;56,000. In 2023, the same amount of panels would cost only 0.3 &#36;/W * 8 kW &#61; &#36;2,400.</p>
+<p>While the price of solar panels is going down exponentially, the amount of solar installations is going up exponentially:</p>
+<p><img src="/assets/ai-learning-curves/renewable-capacity-additions.png" alt="Installed solar PV capacity" /></p>
+<p>In <a href="/posts/battery-learning-curves">another blog post</a>, I showed that Tony Seba has correctly predicted that batteries would roughly become 14&#37; cheaper every year:</p>
+<p><img src="/assets/battery-learning-curves/final.png" alt="Battery cost decline" /></p>
+<p>In this graph, the lines show 12&#37; and 16&#37; cost decline as was predicted by Tony Seba in 2010 and 2014. As you can see, the actual cost decline has indeed been very close to Tony&#39;s predictions.</p>
+<p>So maybe we can use the same method to estimate the future of AI?</p>
+<h2 id="learning_rates"><a href="#learning_rates" class="header-anchor">Learning rates</a></h2>
+<p>Before going into AI, let&#39;s first look at learning rates for other technologies. For solar panels for example, we know that the cost decline occured over \(2023 - 1975 = 48\) years. The rate can then be calculated as follows: \((0.3 / 100)^{1/48} = 0.886\). Just to verify, \(100 * 0.886^{48} ≈ 0.3\).</p>
+<p>This means that the costs declines by roughly \(1-0.886=12\%\) every year. So, the <em>learning rate</em> for solar panels is 12&#37;.</p>
+<p>Using the same method, I estimated the following numbers with the use of Fermi estimates &#40;also known as <em>order-of-magnitude</em> estimates&#41;. The idea of Fermi estimates is that over- and underestimates can cancel each other out when multiplying terms. Next to the cost declines, I also estimated the production growth.</p>
+<table><tr><th align="left">Technology</th><th align="right">Cost decline per year</th><th align="right">Production growth per year</th></tr><tr><td align="left">Solar PV</td><td align="right">12&#37;</td><td align="right">26&#37;<sup id="fnref:solarprod"><a href="#fndef:solarprod" class="fnref">[1]</a></sup></td></tr><tr><td align="left">Batteries</td><td align="right">14&#37;<sup id="fnref:batterycost"><a href="#fndef:batterycost" class="fnref">[2]</a></sup></td><td align="right">50&#37;<sup id="fnref:batteryprod"><a href="#fndef:batteryprod" class="fnref">[3]</a></sup></td></tr><tr><td align="left">Data storage</td><td align="right">35&#37;<sup id="fnref:datastoragecost"><a href="#fndef:datastoragecost" class="fnref">[4]</a></sup></td><td align="right">5&#37;<sup id="fnref:datastorageprod"><a href="#fndef:datastorageprod" class="fnref">[5]</a></sup></td></tr><tr><td align="left">Network transport</td><td align="right">60&#37;<sup id="fnref:networkcost"><a href="#fndef:networkcost" class="fnref">[6]</a></sup></td><td align="right">50&#37;<sup id="fnref:networkprod"><a href="#fndef:networkprod" class="fnref">[7]</a></sup></td></tr><tr><td align="left">Computer chips</td><td align="right">40&#37;<sup id="fnref:chipcost"><a href="#fndef:chipcost" class="fnref">[8]</a></sup></td><td align="right">6&#37;<sup id="fnref:chipprod"><a href="#fndef:chipprod" class="fnref">[9]</a></sup></td></tr></table>
+<p>In most cases, the cost went down while the quality went up. For example, modern batteries have much longer lifetimes &#40;and warranties&#41; than older batteries. Also, modern SSDs are much faster than older hard disks.</p>
+<p>I&#39;ll now speculate a bit on why the production growth is so different for the different technologies. My guess is that the production growth is largely dependent on how much better and cheaper the technology is compared to the alternative. When technologies replace something else, the change goes very rapidly. But at some point, they will reach a point where they have replaced all alternatives and then growth will slow down.</p>
+<p>Data storage and computer chips have already replaced all alternatives. In 1953, you could choose between a hard disk drive or magnetic tape. The hard disk drive at some point became cheaper and better than the magnetic tape leading everyone to switch. Now, there is not competition. Most places already use SSDs, so growth is limited to finding new use-cases.</p>
+<p>However, batteries are replacing existing use-cases. The benefit batteries have in cars is that they require less maintenance and are about 2-3 times more energy efficient than combustion cars<sup id="fnref:electriccars"><a href="#fndef:electriccars" class="fnref">[10]</a></sup>. It&#39;s similar for network transport. It looks like things are still moving over from physical transport to network transport. More and more meetings are held online instead of in person. Even shopping of course is partially replaced by moving pictures of the product over the internet instead of physically going to the store.</p>
+<h2 id="ai_learning_rate"><a href="#ai_learning_rate" class="header-anchor">AI learning rate</a></h2>
+<p>AI is what caused me to write this blog post. I already knew that the price per teraflop of compute power has been going down very rapidly. For example, Bill Dally from Nvidia showed that inference performance per chip has <a href="https://www.youtube.com/watch?v&#61;kLiwvnr4L80&amp;t&#61;664s">increased by 1000x in the last 10 years</a>. This means a performance increase of about 100&#37; per year while the price per chip has not increased by 1000x.</p>
+<p>On top of this, Deepseek released their new model and people have estimated that training cost has decreased from about &#36;500 million to about &#36;5 million. Similarly, their inference pricing is also an order of magnitude lower than OpenAI. It looks like there are two factors that are rapidly reducing the cost of AI. The hardware costs are going down while algorithms are also becoming more efficient.</p>
+<p>I was curious how fast the cost of AI is going down. For this, let&#39;s use the price of inference:</p>
+<table><tr><th align="right">Date</th><th align="left">Model</th><th align="right">Price per 1M output tokens</th></tr><tr><td align="right">Feb 2023</td><td align="left">OpenAI Davinci</td><td align="right">&#36;20<sup id="fnref:davinci"><a href="#fndef:davinci" class="fnref">[11]</a></sup></td></tr><tr><td align="right">Mar 2023</td><td align="left">OpenAI GP-4</td><td align="right">&#36;60<sup id="fnref:gpt4"><a href="#fndef:gpt4" class="fnref">[12]</a></sup></td></tr><tr><td align="right">Nov 2023</td><td align="left">OpenAI GPT-4 Turbo</td><td align="right">&#36;30<sup id="fnref:gpt4"><a href="#fndef:gpt4" class="fnref">[12]</a></sup></td></tr><tr><td align="right">May 2024</td><td align="left">OpenAI GPT-4o</td><td align="right">&#36;15<sup id="fnref:gpt4o"><a href="#fndef:gpt4o" class="fnref">[13]</a></sup></td></tr><tr><td align="right">Jul 2024</td><td align="left">OpenAI GPT-4o Mini</td><td align="right">&#36;0.6<sup id="fnref:gpt4o"><a href="#fndef:gpt4o" class="fnref">[13]</a></sup></td></tr><tr><td align="right">Jan 2025</td><td align="left">Llama 3.3 Instruct 70B</td><td align="right">&#36;0.7<sup id="fnref:artificialanalysis"><a href="#fndef:artificialanalysis" class="fnref">[14]</a></sup></td></tr><tr><td align="right">Jan 2025</td><td align="left">DeepSeek V3</td><td align="right">&#36;1.1<sup id="fnref:artificialanalysis"><a href="#fndef:artificialanalysis" class="fnref">[14]</a></sup></td></tr></table>
+<p>This means the cost decline per year was 77&#37;<sup id="fnref:annualrate"><a href="#fndef:annualrate" class="fnref">[15]</a></sup>. Also here, the price went down while the quality/performance went up. What the cost decline means is that inference pricing for state-of-the-art models will probably go down to &#36;0.24 per 1M output tokens around Jan 2026, &#36;0.05 per Jan 2027, and &#36;0.01 per Jan 2028. If you keep quality constant, the decrease is <a href="https://darioamodei.com/on-deepseek-and-export-controls">about 1000&#37; per year</a>.</p>
+<p>As a practical example of what this decrease for state-of-the-art models means, let&#39;s say you use an AI copilot in your text editor as a autocomplete or you use AI to generate to starting point for text documents. Then, you would probably generate about 1000 tokens per day<sup id="fnref:tokens"><a href="#fndef:tokens" class="fnref">[16]</a></sup>. But say 3000 tokens per day to be on the safe side and to also account for input tokens.</p>
+<p>Then the monthly cost is currently around &#36;0.03. Given that it probably saves me about 30 * 30 &#61; 900 minutes per month, this is multiple orders of magnitude cheaper than the thing it replaces, namely me.</p>
+<p>Now to question is where this is heading. Based on the reasoning above, I have to re-conclude that AI-powered applications will replace many existing applications. A lot of people currently are trying to use AI, but have a hard time finding use-cases. Based on current stock prices, many people think that these new applications will come out of the big tech. I think that&#39;s unlikely.</p>
+<p>AI in code editors is my favorite example of this. Microsoft was early with releasing Copilot. Simply put, Copilot is autocomplete for programmers. But while Microsoft had everything it needed to release the best AI code editor, they didn&#39;t. Microsoft had the biggest AI infrastructure &#40;Azure&#41;, they had the most used code editor &#40;Visual Studio Code&#41;, they had the most capable models &#40;via OpenAI&#41;, and they were the first to release an AI code editor. Still, Cursor AI came in and many programmers switched to Cursor.</p>
+<p>DeepSeek is another example. Microsoft, Google, Meta, OpenAI, and Anthropic all had the most experience and the most resources. Still, DeepSeek came out of the blue with <a href="https://stratechery.com/2025/deepseek-faq/">multiple innovations</a>. DeepSeek&#39;s CEO, Liang Wenfeng, argues that this is because this is a <a href="https://www.chinatalk.media/p/deepseek-ceo-interview-with-chinas">new technology</a>. According to Wenfeng all you need is small teams with &quot;fresh graduates from top universities, PhD candidates in their fourth or fifth year, and some young people who graduated just a few years ago.&quot; My interpretation is that young people are better at finding new solutions to new problems, whereas older and more experienced people are better at improving existing solutions. This is why improvements in the TSMC process need a PhD and years of industry experience, but advances in Gemini at Google were made by Sholto who was <a href="https://www.chinatalk.media/p/deepseek-ceo-interview-with-chinas">only in the field for 1.5 years</a>.</p>
+<p>I think that the same will happen with other AI-powered applications. The big companies will probably try to figure out the best applications, but it is likely that new players will come up with new applications that have better AI integrations. As DeepSeek&#39;s CEO put it, &quot;Using Internet business logic to discuss future AI profit models is like discussing General Electric and Coca-Cola when Pony Ma <em>&#91;Founder of Tencent; one of the biggest companies in the video game industry&#93;</em> was starting his business.&quot; Taleb would probably agree. In a <a href="https://youtu.be/cidH25tVggQ">recent interview</a> he said that if you wanted to invest in the internet in 1999, you would probably have invested in Altavista. But then Google came out of nowhere and displaced Altavista. Note also that Google was built by a few young and highly technical people.</p>
+<p>As a Google employee predicted in 2023, open source has a <a href="https://semianalysis.com/2023/05/04/google-we-have-no-moat-and-neither/">good chance of winning</a>. Maybe we will see replacements for Word, Photoshop, Slack, or PowerPoint. Also, and this is more exciting, we will probably see more new/niche applications that are only possible due to AI.</p>
+<p>For now, I&#39;ll leave it here. I hoped that estimating the learning rate would give me at least some idea of where AI would be heading, but I feel like I still don&#39;t know. What I do know is that the learning rate is currently very high. AI is already very cheap and will probably become much cheaper fast.</p>
+<p>It&#39;s going to be interesting.</p>
+<h2 id="footnotes"><a href="#footnotes" class="header-anchor">Footnotes</a></h2>
+<p><table class="fndef" id="fndef:solarprod">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:solarprod">[1]</a></td>
+        <td class="fndef-content">\((61200/7050)^{(1/(2023-2007))}\) means 12&#37; growth per year based on <a href="https://www.statista.com/statistics/668764/annual-solar-module-manufacturing-globally/">https://www.statista.com/statistics/668764/annual-solar-module-manufacturing-globally/</a>, but Wikipedia says 26&#37; <a href="https://en.wikipedia.org/wiki/Growth_of_photovoltaics">https://en.wikipedia.org/wiki/Growth_of_photovoltaics</a> and matches better the growth I have seen in other sources.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:batterycost">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:batterycost">[2]</a></td>
+        <td class="fndef-content"><a href="https://huijzer.xyz/posts/battery-learning-curves/">https://huijzer.xyz/posts/battery-learning-curves/</a>.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:batteryprod">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:batteryprod">[3]</a></td>
+        <td class="fndef-content">Taking China as a proxy for global production since China produces at least more than half of the world&#39;s batteries. \((950/150)^{(1/(2023-2019))} = 60%\). <a href="https://about.bnef.com/blog/ev-slowdown-countered-by-energy-storage-boom/">https://about.bnef.com/blog/ev-slowdown-countered-by-energy-storage-boom/</a>. I&#39;ve put the estimate at 50&#37; since the production growth in the West is about 30&#37; per year and the West produces around 30&#37; of the world&#39;s batteries.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:datastoragecost">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:datastoragecost">[4]</a></td>
+        <td class="fndef-content">Kryder&#39;s Law. <a href="https://youtu.be/Kxryv2XrnqM?t&#61;480">https://youtu.be/Kxryv2XrnqM?t&#61;480</a>.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:datastorageprod">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:datastorageprod">[5]</a></td>
+        <td class="fndef-content">\(((350+350)/(450+40))^{(1/(2020-2012))}\). Figure 1 in <a href="http://dx.doi.org/10.2788/89220">http://dx.doi.org/10.2788/89220</a>.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:networkcost">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:networkcost">[6]</a></td>
+        <td class="fndef-content">Butter&#39;s Law of Photonics. <a href="https://youtu.be/Kxryv2XrnqM?t&#61;480">https://youtu.be/Kxryv2XrnqM?t&#61;480</a>.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:networkprod">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:networkprod">[7]</a></td>
+        <td class="fndef-content">\((40/0.16)^{(1/(2020-2006))}\). Figure 1 in <a href="http://dx.doi.org/10.1360/972013-1054">http://dx.doi.org/10.1360/972013-1054</a>.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:chipcost">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:chipcost">[8]</a></td>
+        <td class="fndef-content">\((0.0125/190 380 000 000)^{(1/(2023-1961))}\) and \((0.0125/56940)^{(1/(2023-1997))}\) give \(1-0.61=39\%\) and \(1-0.55=45\%\) respectively. <a href="https://en.wikipedia.org/wiki/Floating_point_operations_per_second">https://en.wikipedia.org/wiki/Floating_point_operations_per_second</a>. Tony Seba also estimates about 40&#37; &#40;https://youtu.be/Kxryv2XrnqM?t&#61;469&#41;.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:chipprod">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:chipprod">[9]</a></td>
+        <td class="fndef-content">Capacity increased with 9&#37;, 8&#37;, 5&#37;, 6&#37;, and 7&#37; respectively from 2021 to 2025. <a href="https://www.ept.ca/2024/06/global-semi-fab-capacity-projected-to-expand/">https://www.ept.ca/2024/06/global-semi-fab-capacity-projected-to-expand/</a>.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:davinci">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:davinci">[11]</a></td>
+        <td class="fndef-content"><a href="https://neoteric.eu/blog/how-much-does-it-cost-to-use-gpt-models-gpt-3-pricing-explained/">https://neoteric.eu/blog/how-much-does-it-cost-to-use-gpt-models-gpt-3-pricing-explained/</a>.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:gpt4">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:gpt4">[12]</a></td>
+        <td class="fndef-content"><a href="https://www.nebuly.com/blog/openai-gpt-4-api-pricing">https://www.nebuly.com/blog/openai-gpt-4-api-pricing</a>.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:artificialanalysis">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:artificialanalysis">[14]</a></td>
+        <td class="fndef-content"><a href="https://artificialanalysis.ai/">https://artificialanalysis.ai/</a>.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:annualrate">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:annualrate">[15]</a></td>
+        <td class="fndef-content">\((1/20)^{(1/(2025-2023))}\).</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:tokens">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:tokens">[16]</a></td>
+        <td class="fndef-content">This is also roughly what I use via Open WebUI with DeepSeek V3.</td>
+    </tr>
+</table>
+ <table class="fndef" id="fndef:electriccars">
+    <tr>
+        <td class="fndef-backref"><a href="#fnref:electriccars">[10]</a></td>
+        <td class="fndef-content">Also when the energy comes from a power plant instead of solar panels. Most Western countries in the least efficient case use gas power plants nowadays, which have an efficiency of about 80&#37;. The electric car including battery has an efficiency of about 90&#37;, so 90&#37; * 80&#37; &#61; 72&#37;. Petrol cars have an efficiency of about 20&#37;. In winter this is a bit better because the engine heat is useful for heating the car.</td>
+    </tr>
+</table>
+</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

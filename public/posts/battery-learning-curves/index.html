@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Battery Learning Curves - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Battery Learning Curves" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Estimating the learning rate of batteries" />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Battery Learning Curves" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Battery Learning Curves </h1> 
+   <span class="page-date"> 2024-05-30 </span> 
+</div>
+<div class="franklin-content">
+<p>A few months ago, I spent some time on trying to predict the <a href="/posts/batteries">changes in batteries</a> over time. My aim was to estimate when electric cars would finally be as cheap or cheaper than internal combustion engine cars. However, my approach in that blog post was extremely naive since I didn&#39;t know about <a href="https://ourworldindata.org/learning-curve"><em>learning curves</em></a>. Simply put, learning curves are a real world phenomenon where a good or service becomes consistently cheaper over time. As shown in the learning curve link, solar modules have gotten 99.6&#37; cheaper since 1976. From &#36;100 to about &#36;0.3, that&#39;s almost 4 orders of magnitude&#33;</p>
+<p><img src="/assets/battery-learning-curves/solar-pv-prices.svg" alt="Solar PV prices versus cumulative capacity" /></p>
+<p>The reason why these improvements occur is often called <em>economies of scale</em>. I think it&#39;s fair to explain it via Taleb&#39;s <em>antifragility</em>. Antifragility is a property of systems in which bad events such as shocks, stressors, or failures, cause the system to become more capable. Aviation safety is the primary example. Each time an accident occurs in aviation, people investigate the root causes and then find ways to minimize these events from happening. So the more people fly, the more aviation accidents occur, and the more people learn to avoid accidents. I think it&#39;s the same for chip, solar panel, or battery production. The more are produced, the more people learn about the production. In the case of chips, for example, this means not only that people learn at the chip producer, but also along the entire supply chain. More specifically, Apple&#39;s chips become better and cheaper because they and their, say, a dozen suppliers become better and cheaper. Next, these dozen suppliers become better and cheaper because they and their dozen suppliers become better and cheaper, and so forth.</p>
+<p>But why do these phenomenon last so long? They have to stop at one point, right? I suspect that the antifragility is what keeps them going.  As long as the whole system is not running out of something essential resource, this can continue for a while. For example, construction price declines are constrained by the availability of space. Legal industry prices are constrained by the availability of workers, since it&#39;s hard to find or train more lawyers. Oil prices are constrained by the availability of oil. Conversely, chip prices seem to not be constrained since the 1960s. Material prices, for example, are not the issue. A modern chip weights about 2 grams and costs a few hundred dollars. That is a price of about &#36;50k per kg. The core raw material is silicon and that costs only about &#36;100 per kg &#40;0.2&#37;&#41;.</p>
+<p>So with learning curves in mind, let&#39;s improve my old predictions for battery prices.</p>
+<h2 id="batteries"><a href="#batteries" class="header-anchor">Batteries</a></h2>
+<p>In the book <em>Clean Disruption of Energy and Transportation</em> written by Tony Seba in 2014, he repeats his 2010 prediction which looked roughly as follows:</p>
+<p><img src="/assets/battery-learning-curves/2014-prediction.png" alt="2010 prediction" /></p>
+<p>Here, I used &#36;1,000 as a starting point and went down by 12&#37; each year. This is almost the same as the plot in the book.</p>
+<p>So in 2010 Tony predicted the cost of Li-on batteries to reach &#36;100/kWh by 2028. However, in 2014 he wrote that the costs were going down a little faster than he predicted. He changed the cost improvement rate to 16&#37;:</p>
+<p><img src="/assets/battery-learning-curves/16-improvement-rate.png" alt="16&#37; improvement rate" /></p>
+<p>Which gave a cost of &#36;104 for 2023 when starting the calculation at &#36;500 in 2014.</p>
+<p>When we plot the real <a href="https://about.bnef.com/blog/lithium-ion-battery-pack-prices-hit-record-low-of-139-kwh/">2013 to 2023</a> and <a href="https://x.com/colinmckerrache/status/1800901575214514475">2024</a> battery pack prices according to BloombergNEF on top of these 2 projections, we get:</p>
+<p><img src="/assets/battery-learning-curves/final.png" alt="final price prediction" /></p>
+<p>It turns out that the 16&#37; cost improvement rate was too optimistic, and the 12&#37; too pessimistic. In reality, the costs lay somewhere in between.</p>
+<p>I was planning to estimate a new improvement rate based on the numbers, but actually I think it&#39;s more reasonable to keep the 12&#37; and 16&#37; as lower and upper bounds. If we take into account that we had a pandemic in 2021 and 2022 and the start of the second cold war in 2022 due to the invasion of Ukraine, I suspect &#40;or hope&#41; that the cost will continue to go down more steadily from here again. But, we of course never know what will happen in the future. Therefore, I expect that the future will probably lie somewhere in between these rates if we just look at the data. That means that the price of a battery will probably be between &#36;64 and &#36;128 in 2025, and between &#36;28 and &#36;66 in 2030.</p>
+<p>For cars, this would have the following implications. A simple electric car with a 200-mile &#40;321 km&#41; range would need a battery of about 50 kWh, as pointed out in the 2014 book. When multiplying the battery cost by this 50 kWh, this means that car manufacturers spent about &#36;6,950 on the battery in 2023. Given that cars cost about &#36;40,000, this means about 18&#37; was spent on the battery alone. By 2025, the price will have dropped to something in between &#36;3,200 and &#36;6,400 And by 2030, to something in between &#36;1,400 and &#36;3,300. Assuming that car manufacturers still spend about 20&#37; on the battery, an electric car should then cost somewhere in between &#36;7,000 and &#36;16,500. As a side-note, note that the usefulness and hence value of an electic car will increase when more and more chargers are installed. The more fast chargers are available, the easier and faster it is to recharge.</p>
+<p>As a final note, I estimate that overall electric cars will be cheaper long before that. Electricity is already cheaper than diesel or petrol. Maintenance is cheaper too. Dutch professor Maarten Steinbuch has owned and investigated Tesla&#39;s since 2013. He wrote that the battery basically will last as long as the car since it will only decline by about <a href="https://maartensteinbuch.com/2024/02/18/onze-vijfde-tesla-en-vijf-tips-voor-nieuwe-tesla-rijders/">20&#37; capacity after 450,000 miles &#40;750,000 km&#41;</a>. He also advices new Tesla drivers that apart from tires and windshield wiper fluid to &quot;not go to a garage for maintenance, it&#39;s completely pointless.&quot;</p>
+<p><em>The source code for the plots can be found <a href="/assets/battery-learning-curves/battery-learning-curves.jl">here</a>.</em></p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

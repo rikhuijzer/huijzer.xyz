@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> GitHub and GitLab commands cheatsheet - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="GitHub and GitLab commands cheatsheet" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="A cheatsheet for commands like 'Fix #2334'." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="GitHub and GitLab commands cheatsheet" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> GitHub and GitLab commands cheatsheet </h1> 
+   <span class="page-date"> 2020-12-16 </span> 
+</div>
+<div class="franklin-content">
+<p>Both GitHub and GitLab provide shortcuts for interacting with the layers they have built on top of Git. These shortcuts are a convenient and clean way to interact with things like issues and PRs. For instance, using <code>Fixes #2334</code> in a commit message will close issue #2334 automatically when the commit is applied to the main branch. However, the layers on top of Git differ between the two, and therefore the commands will differ as well. This document is a cheatsheet for issue closing commands; I plan to add more of these commands over time.</p>
+<h2 id="move_code_from_one_branch_to_another"><a href="#move_code_from_one_branch_to_another" class="header-anchor">Move code from one branch to another</a></h2>
+<p>Sometimes after merging a PR in the webinterface, I accidentally continue on the old branch. This then causes an error when I try to commit into the deleted branch. To quickly solve it, what I always do is to backup by changes:</p>
+<pre><code class="language-julia">git diff &gt; ~/tmp.patch</code></pre>
+<p>Then reset Git &#40;this is dangerous&#33; make sure that the <code>tmp.patch</code> is correct&#33;&#41;</p>
+<pre><code class="language-julia">git reset --hard HEAD</code></pre>
+<p>And then</p>
+<pre><code class="language-julia">git checkout main</code></pre>
+<p>And finally bring the changes back in</p>
+<pre><code class="language-julia">git apply ~/tmp.patch</code></pre>
+<h2 id="delete_one_token_from_the_git_credential_manager"><a href="#delete_one_token_from_the_git_credential_manager" class="header-anchor">Delete one token from the Git credential manager</a></h2>
+<p>To delete only one token, use</p>
+<pre><code class="language-sh">git credential-store erase</code></pre>
+<p>For example, to erase the token for <code>https://github.com</code>, use</p>
+<pre><code class="language-sh">echo -e &quot;protocol&#61;https\nhost&#61;github.com&quot; | git credential-store erase</code></pre>
+<h2 id="close_an_issue_via_a_pull_request_title_or_commit_message"><a href="#close_an_issue_via_a_pull_request_title_or_commit_message" class="header-anchor">Close an issue via a pull request title or commit message</a></h2>
+<h3 id="github"><a href="#github" class="header-anchor">GitHub</a></h3>
+<p>On GitHub use &#40;<a href="https://docs.github.com/en/free-pro-team@latest/github/managing-your-work-on-github/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword">docs</a>&#41;:</p>
+<ul>
+<li><p>close</p>
+</li>
+<li><p>closes</p>
+</li>
+<li><p>closed</p>
+</li>
+<li><p>fix</p>
+</li>
+<li><p>fixes</p>
+</li>
+<li><p>fixed</p>
+</li>
+<li><p>resolve</p>
+</li>
+<li><p>resolves</p>
+</li>
+<li><p>resolved</p>
+</li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-c">Fix #2334
+Fix octo-org/octo-repo#2334
+Fix #2334, fix octo-org/octo-repo#2334</code></pre>
+<p><br /></p>
+<h3 id="gitlab"><a href="#gitlab" class="header-anchor">GitLab</a></h3>
+<p>On GitLab use &#40;<a href="https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues">docs</a>&#41;:</p>
+<ul>
+<li><p>Close, Closes, Closed, Closing, close, closes, closed, closing </p>
+</li>
+<li><p>Fix, Fixes, Fixed, Fixing, fix, fixes, fixed, fixing </p>
+</li>
+<li><p>Resolve, Resolves, Resolved, Resolving, resolve, resolves, resolved, resolving </p>
+</li>
+<li><p>Implement, Implements, Implemented, Implementing, implement, implements, implemented, implementing </p>
+</li>
+</ul>
+<p><strong>Examples</strong></p>
+<pre><code class="language-c">Fixes #2334
+Closes #2334
+Closes #4, #6
+Closes group/project#123</code></pre>
+<h2 id="get_your_branches_again_after_a_shallow_clone"><a href="#get_your_branches_again_after_a_shallow_clone" class="header-anchor">Get your branches again after a shallow clone</a></h2>
+<p>For large repositories, it is often useful &#40;or necessary even&#41; to make a shallow clone. For example, when cloning your fork at <code>someusername</code> of the Rust language, you can use:</p>
+<pre><code class="language-julia">git clone --depth&#61;1 https://github.com/someusername/rust</code></pre>
+<p>However, now all branches are missing so you cannot continue working on your PRs. To fix this, use:</p>
+<pre><code class="language-julia">git remote set-branches origin &#39;*&#39;
+
+git fetch -v --depth&#61;1
+
+git checkout the-pr-branch</code></pre>
+<p>Thanks to <code>marlo</code> and <code>jthill</code> on <a href="https://stackoverflow.com/a/27393574/5056635">StackOverflow</a>.</p>
+<p>As a side note, sometimes it&#39;s useful to merge upstream into the PR branch from the GitHub web interface. To do this, browse to the branch inside the fork and click on &quot;Sync fork&quot;. This will merge the upstream&#39;s <code>main</code> into the branch.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

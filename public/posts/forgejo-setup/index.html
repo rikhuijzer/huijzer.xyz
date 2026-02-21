@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Installing Forgejo with a separate runner - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Installing Forgejo with a separate runner" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Docker Compose configuration files and some scripts to get it working" />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Installing Forgejo with a separate runner" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Installing Forgejo with a separate runner </h1> 
+   <span class="page-date"> 2024-03-08 </span> 
+</div>
+<div class="franklin-content">
+<p>On the 15th of February 2024, Forgejo annouced that they will be decoupling &#40;hard forking&#41; their project further from Gitea. I think this is great since Forgejo is the only European Git forge that I know of, and a hard fork means that the project can now grow more independently. With Forgejo, it is now possible to self-host host a forge on a European cloud provider like Hetzner. This is great because it allows decoupling a bit from American Big Tech. Put differently, a self-hosted Forgejo avoids having all your eggs in one basket.</p>
+<p>This post will go through a full step by step guide on how to set things up. This guide is based on my Gitea configuration that I ran for a year, so it works. During the year, I paid about 10 euros per month for two Hetzner servers. The two servers allow separating Forgejo from the runners. This ensures that a heavy job on the runner will not slow down the Forgejo server.</p>
+<h1 id="creating_a_server"><a href="#creating_a_server" class="header-anchor">Creating a server</a></h1>
+<p>On Hetzner, I went for the second cheapest x86 server with 2 VCPU, 2 GB RAM, and 40 GB SSD. This server responds much quicker to Git pushes than the cheapest 1 VCPU setting. The OS is set to Ubuntu 22.04. With backups and a IPv4 address, this costs €6.20 per month. For the firewall, ensure that TCP ports 22, 443, and 80 are open. For the server name, I would advice to give it a name that is easy to remember. In my case, I called it <code>arnold</code>.</p>
+<p>Unfortunately, I do not pick the ARM server here. Even if Forgejo works with ARM &#40;I&#39;m not sure but it could be&#41;, then having an ARM will be restrictive. It&#39;s very cumbersome to have a full Forgejo instance running only to find out that some part doesn&#39;t work. Or, that it is not possible to co-host another service next to it. Maybe I&#39;ll switch later.</p>
+<p>So, after the server called <code>arnold</code> is created, let&#39;s add it to our local SSH config at <code>~/.ssh/config</code>:</p>
+<pre><code class="language-julia">Host arnold
+    HostName &lt;IP ADDRESS&gt;
+    User root
+    IdentityFile ~/.ssh/hetzner</code></pre>
+<p>Now, we can connect to the server with <code>ssh arnold</code>. As always with any new server, start with:</p>
+<pre><code class="language-sh">sudo apt update
+
+sudo apt upgrade
+
+sudo reboot</code></pre>
+<p>Next, because we&#39;re going to use Docker Compose, install Docker via their <a href="https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository">apt repository</a>. And ensure that it works by running:</p>
+<pre><code class="language-julia">docker run hello-world</code></pre>
+<h1 id="caddy"><a href="#caddy" class="header-anchor">Caddy</a></h1>
+<p>Next, note that want to make our Forgejo server available to the outside world. This requires certificates so that a secure connection can be established. We&#39;ll use Caddy with Let&#39;s Encrypt to do this. By using Caddy as a reverse proxy, we will get HTTPS and can also use it to add extra services to the server later if we want.</p>
+<p>Before we start Caddy, we need to make our server available on some domain. Assuming you have some domain, say <code>example.com</code> available, add the following A and AAAA records:</p>
+<pre><code class="language-julia">A git &lt;IP ADDRESS&gt;
+AAAA git &lt;IPv6 ADDRESS&gt;</code></pre>
+<p>With a reasonably low TTL of say 15 minutes. By default, the TTL is often much higher which means that you need to wait for hours if you make a mistake. Now, <code>git.example.com</code> will point to our server. I will call this <code>&lt;DOMAIN&gt;</code> from here onward in this tutorial.</p>
+<p>Now we can configure Caddy. Add a new directory on your server called <code>caddy</code> and put the following in <code>Caddyfile</code>:</p>
+<pre><code class="language-julia">&#123;
+  email &lt;YOUR EMAIL ADDRESS&gt;
+  admin off
+&#125;
+
+&lt;DOMAIN&gt; &#123;
+  reverse_proxy 127.0.0.1:3000
+&#125;</code></pre>
+<p>Also add a <code>docker-compose.yml</code> file:</p>
+<pre><code class="language-yml">services:
+  caddy:
+    image: &#39;caddy:2.10.0-alpine&#39;
+    network_mode: &#39;host&#39;
+    container_name: &#39;caddy&#39;
+    logging:
+      driver: &#39;json-file&#39;
+      options:
+        max-size: &#39;10m&#39;
+        max-file: &#39;10&#39;
+    volumes:
+      - &#39;./Caddyfile:/Caddyfile:ro&#39;
+      # This allows Caddy to cache the certificates.
+      - &#39;/data/caddy:/data:rw&#39;
+    command: &#39;caddy run --config /Caddyfile --adapter caddyfile&#39;
+    restart: &#39;unless-stopped&#39;</code></pre>
+<p>The logging limits ensure that the logs will not grow infinitely. I&#39;ve been there. Having to recover a server which ran out of disk space is not fun.</p>
+<p>Now Caddy can be started with:</p>
+<pre><code class="language-sh">docker compose up</code></pre>
+<p>and the server should be available in the browser at the URL <code>https://&lt;DOMAIN&gt;</code>. It should show an empty page with status 502 Bad Gateway. This 502 is because we told Caddy that it should resolve to port 3000, but there is nothing there yet&#33; All is good at this point, press CTRL &#43; C to stop Caddy and start it again with:</p>
+<pre><code class="language-sh">docker compose up -d</code></pre>
+<p>Now the Caddy service should remain online even after you close the terminal. Thanks to <code>restart: &#39;unless-stopped&#39;</code>, the Caddy service will also automatically restart after a server reboot.</p>
+<h1 id="forgejo"><a href="#forgejo" class="header-anchor">Forgejo</a></h1>
+<p>Go back to the main directory and make a new directory called <code>forgejo</code>. Step into <code>forgejo/</code> and add a file called <code>app.ini</code>:</p>
+<pre><code class="language-ini">APP_NAME &#61; git
+RUN_USER &#61; git
+RUN_MODE &#61; prod
+WORK_PATH &#61; /var/lib/forge
+
+&#91;server&#93;
+SSH_DOMAIN &#61; localhost
+HTTP_PORT &#61; 3000
+ROOT_URL &#61; https://&lt;DOMAIN&gt;
+DISABLE_SSH &#61; true
+; In rootless gitea container only internal ssh server is supported
+START_SSH_SERVER &#61; true
+SSH_PORT &#61; 2222
+SSH_LISTEN_PORT &#61; 2222
+BUILTIN_SSH_SERVER_USER &#61; git
+
+&#91;database&#93;
+DB_TYPE &#61; sqlite3
+HOST &#61; localhost:3306
+NAME &#61; forge
+USER &#61; root
+PASSWD &#61;
+
+&#91;security&#93;
+INSTALL_LOCK &#61; true
+REVERSE_PROXY_LIMIT &#61; 1
+REVERSE_PROXY_TRUSTED_PROXIES &#61; *
+
+&#91;service&#93;
+DISABLE_REGISTRATION &#61; true
+REQUIRE_SIGNIN_VIEW &#61; false
+
+&#91;actions&#93;
+ENABLED &#61; true
+DEFAULT_ACTIONS_URL &#61; https://github.com</code></pre>
+<p>These are some values that I picked, but feel free to tweak them. This assumes that you want a personal Git forge which doesn&#39;t allow other people to register on it.</p>
+<p>Also, I&#39;ve set the <code>DEFAULT_ACTIONS_URL</code> to GitHub in order to have Forgejo be more of a drop-in replacement for the GitHub Actions. This works very well if also specifying the right runner <em>label</em>, see below.</p>
+<p>Change <code>&lt;DOMAIN&gt;</code> to your git server&#39;s domain name. Next, add a file called <code>setup.sh</code>:</p>
+<pre><code class="language-sh">set -e
+
+mkdir -p work
+mkdir -p work/data
+
+chown -R 1000:1000 work/data
+chmod 775 work/data
+chmod g&#43;s work/data
+
+chown 1000:1000 app.ini
+chmod 775 app.ini
+chmod g&#43;s app.ini</code></pre>
+<p>This will setup the rootless work directory that Forgejo will use. Run this file with</p>
+<pre><code class="language-sh">bash setup.sh</code></pre>
+<p>Finally, add <code>docker-compose.yml</code>:</p>
+<pre><code class="language-yaml">networks:
+  forgejo:
+    external: false
+
+services:
+  gitea:
+    image: &#39;codeberg.org/forgejo/forgejo:11-rootless&#39;
+    container_name: &#39;forgejo&#39;
+    environment:
+      USER_UID: &#39;1000&#39;
+      USER_GID: &#39;1000&#39;
+      FORGEJO_WORK_DIR: &#39;/var/lib/forge&#39;
+    user: &#39;1000:1000&#39;
+    networks:
+      - forgejo
+    ports:
+      - &#39;3000:3000&#39;
+      - &#39;222:22&#39;
+    volumes:
+      - &#39;./app.ini:/etc/forgejo/app.ini&#39;
+      - &#39;./data:/data:rw&#39;
+      - &#39;/etc/timezone:/etc/timezone:ro&#39;
+      - &#39;/etc/localtime:/etc/localtime:ro&#39;
+      # Depends on &#96;FORGEJO_WORK_DIR&#96;.
+      - &#39;./work:/var/lib/forge:rw&#39;
+    logging:
+      driver: &#39;json-file&#39;
+      options:
+        max-size: &#39;10m&#39;
+        max-file: &#39;10&#39;
+    restart: &#39;unless-stopped&#39;</code></pre>
+<p>and start this with <code>docker-compose up</code>.</p>
+<p>While this is running, open another terminal to add an admin user. First, step into the running container:</p>
+<pre><code class="language-bash">docker exec -it forgejo /bin/bash</code></pre>
+<p>and then add an admin user:</p>
+<pre><code class="language-bash">forgejo admin user create --username &lt;USERNAME&gt; --password &lt;PASSWORD&gt; --email &lt;EMAIL&gt; --admin</code></pre>
+<p>Now Forgejo should be up and running at <code>https://&lt;DOMAIN&gt;</code> and signing in should work with the newly created admin account. If there are errors, try restarting the server with <code>reboot now</code>. With that, both Caddy and Forgejo restart which might solve the problem.</p>
+<h1 id="forgejo_runner"><a href="#forgejo_runner" class="header-anchor">Forgejo runner</a></h1>
+<p>Having a forge is one thing, but in my opinion a CI runner is also a must have. For that, we setup another Hetzner server and install the Forgejo runner on that. Also here, I advice to take a x86 server as ARM will likely give problems. Set the server up in the same way as before and SSH into it again. This time, I called the server <code>runner</code> and ssh into it with <code>ssh runner</code>.</p>
+<p>Run <code>update</code> and <code>upgrade</code>, and install Docker and reboot, like before.</p>
+<p>Next, create <code>setup.sh</code>:</p>
+<pre><code class="language-sh">#&#33;/usr/bin/env bash
+
+set -e
+
+mkdir -p data
+touch data/.runner
+mkdir -p data/.cache
+
+chown -R 1001:1001 data/.runner
+chown -R 1001:1001 data/.cache
+chown -R 1001:1001 data/config.yml
+chmod 775 data/.runner
+chmod 775 data/.cache
+chmod 775 data/config.yml
+chmod g&#43;s data/.runner
+chmod g&#43;s data/.cache
+chmod g&#43;s data/config.yml</code></pre>
+<p>and run with</p>
+<pre><code class="language-sh">bash setup.sh</code></pre>
+<p>Then create <code>docker-compose.yml</code> with:</p>
+<pre><code class="language-yaml">services:
+  docker-in-docker:
+    image: docker:dind
+    container_name: &#39;docker_dind&#39;
+    privileged: true
+    command: &#91; &#39;dockerd&#39;, &#39;-H&#39;, &#39;tcp://0.0.0.0:2375&#39;, &#39;--tls&#61;false&#39; &#93;
+    restart: &#39;unless-stopped&#39;
+
+  gitea:
+    image: &#39;code.forgejo.org/forgejo/runner:6.3.1&#39;
+    links:
+      - docker-in-docker
+    depends_on:
+      docker-in-docker:
+        condition: service_started
+    container_name: &#39;runner&#39;
+    environment:
+      DOCKER_HOST: tcp://docker-in-docker:2375
+    # A user without root privileges, but with access to &#96;./data&#96;.
+    user: 1001:1001
+    volumes:
+      - &#39;./data:/data&#39;
+    restart: &#39;unless-stopped&#39;
+
+    command: &#39;/bin/sh -c &quot;while : ; do sleep 1 ; done ;&quot;&#39;</code></pre>
+<p>This <code>command</code> doesn&#39;t start the runner yet, we first register it with the server. To do so, run:</p>
+<pre><code class="language-sh">docker compose up</code></pre>
+<p>And in another terminal, run:</p>
+<pre><code class="language-sh">docker exec -it runner /bin/bash</code></pre>
+<p>And generate a default <code>config.yml</code> with:</p>
+<pre><code class="language-sh">forgejo-runner generate-config &gt; /data/config.yml</code></pre>
+<p>And, optionally, modify <code>data/config.yml</code> to your liking.</p>
+<p>Next register the runner with:</p>
+<pre><code class="language-sh">forgejo-runner register</code></pre>
+<p>with instance URL: <code>https://&lt;DOMAIN&gt;</code>.</p>
+<p>For the runner token, browse to the following URL:</p>
+<pre><code class="language-julia">https://&lt;DOMAIN&gt;/user/settings/actions/runners</code></pre>
+<p>to get it.</p>
+<p>For the runner name, I used <code>hetzner_runner</code>.</p>
+<p>Then for the labels, and this is <strong>very important</strong>, use:</p>
+<pre><code class="language-julia">ubuntu-22.04:docker://ghcr.io/catthehacker/ubuntu:act-22.04</code></pre>
+<p>This label specifies to which workflows the runner will respond. If you want to change this label later, you can modify it in <code>data/.runner</code>. In this case, it will respond to <code>ubuntu-22.04</code> workflows with a <code>ghcr.io/catthehacker/ubuntu:act-22.04</code> container. This is a 1.2 GB container with a lot of pre-installed software. It&#39;s not as feature-full as the GitHub runners, but those are about 20 GB in size, so this is a good compromise. See <a href="https://github.com/nektos/act/blob/master/IMAGES.md"><code>nektos/act</code></a> for more information about the available containers.</p>
+<p>The runner should now be visible at</p>
+<pre><code class="language-julia">https://&lt;DOMAIN&gt;/user/settings/actions/runners</code></pre>
+<p>with the status <code>Offline</code>.</p>
+<p>To fix that, exit the Docker Compose by pressing CTRL&#43;C a few times and modify the <code>command</code> to</p>
+<pre><code class="language-yaml">command: &#39;/bin/sh -c &quot;sleep 5; forgejo-runner -c /data/config.yml daemon&quot;&#39;</code></pre>
+<p>The sleep here provides the <code>docker-in-docker</code> service with some extra time to get started. Run <code>docker compose up -d</code> to start the runner in the background.</p>
+<p>The runner should now be visible at</p>
+<pre><code class="language-julia">https://&lt;DOMAIN&gt;/user/settings/actions/runners</code></pre>
+<p>with the status <code>Idle</code>.</p>
+<h1 id="testing"><a href="#testing" class="header-anchor">Testing</a></h1>
+<p>Finally, let&#39;s test whether the runner works. To do so, create a new repository via the web interface. In the new repository enable repository Actions at</p>
+<pre><code class="language-julia">https://&lt;DOMAIN&gt;/&lt;USERNAME&gt;/&lt;REPO&gt;/settings</code></pre>
+<p>and click &quot;Update Settings&quot;.</p>
+<p>Then, either via the web interface or via cloning the repository and working there, create the following files.</p>
+<p><code>.github/workflows/ci.yml</code>:</p>
+<pre><code class="language-yaml">name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          curl --proto &#39;&#61;https&#39; --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source &quot;&#36;HOME/.cargo/env&quot;
+          echo &quot;&#36;PATH&quot; &gt;&gt; &#36;GITHUB_PATH
+      - run: |
+          rustup update stable
+          rustup default stable
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: &#39;rust&#39;
+      - run: rustc hello.rs
+      - run: ./hello</code></pre>
+<p><code>hello.rs</code>:</p>
+<pre><code class="language-rust">fn main&#40;&#41; &#123;
+    println&#33;&#40;&quot;Hello from Rust&#33;&quot;&#41;;
+&#125;</code></pre>
+<p>Note that this workflow did have to manually install <code>rustup</code> whereas that is installed in the GitHub Runners by default. This is because our <code>node:20</code> docker image doesn&#39;t have <code>rustup</code> installed by default. <code>nektos/act</code> also has more extensive docker images, but those are multiple GB in size. The <code>nektos/act-environments-ubuntu:18.04-full</code>, for example, is 12.1 GB.</p>
+<p>When pushing these changes to the repository, the workflow should run and print &quot;Hello from Rust&#33;&quot; in the last step.</p>
+<p>At this point, you have a fully functional personal forge with a runner 🎉🎉.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

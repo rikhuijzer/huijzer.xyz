@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Correlations - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Correlations" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="The equations and some examples for the Pearson correlation coefficient." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Correlations" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Correlations </h1> 
+   <span class="page-date"> 2020-01-24 </span> 
+</div>
+<div class="franklin-content">
+<p>Correlations are ubiquitous. For example, news articles reporting that a research paper found no correlation between X and Y. Also, it is related to &#40;in&#41;dependence, which plays an important role in linear regression. This post will explain the Pearson correlation coefficient. The explanation is mainly based on the book by Hogg et al. &#40;2018&#41;.</p>
+<p>In the context of a book on mathematical statistics, certain variable names make sense. However, in this post, some variable names are changed to make the information more coherent. One convention which is adhered to is that single values are lowercase, and multiple values are capitalized. Furthermore, since in most empirical research we only need discrete statistics, the continuous versions of formulas are omitted.</p>
+<p>We start by defining some general notions. Let \((X, Y)\) be a pair of random variables where each sample is added exactly once, and the variables have a bivariate distribution. &#40;A bivariate distribution is simply the combination of two distributions. For two normal distributions the three dimensional frequency plot would look like a mountain.&#41; Denote the means of \(X\) and \(Y\) respectively by \(\mu_X\) and \(\mu_Y\). In the situations below the expectation for some random variable \(X\) equals the mean, that is, \(E(X) = \mu_X\). &#40;The expectation equals the mean when the probabilities for all values in a random variable are the same.&#41;</p>
+<h2 id="covariance"><a href="#covariance" class="header-anchor">Covariance </a></h2>
+<p>To understand the correlation coefficient, we must first understand <em>covariance</em>. Covariance is defined as</p>
+\[cov(X,Y) = E[(X - \mu_X)(Y - \mu_Y)].\]
+<p>Over two variables the covariance is a &quot;measure of their joint variability, or their degree of association&quot; &#40;Rice, 2006&#41;. An example of this joint variability is shown in Example 1.</p>
+<h2 id="example_1"><a href="#example_1" class="header-anchor">Example 1</a></h2>
+<p>Let \(A, B\) and \(C\) be discrete random variables defined by respectively \(f_A(x) = x + 1\), \(f_B(x) = 0.5x + 3\), and \(f_C(x) = 5\) for the range 1 to 7. Let \(D\) be the reverse of \(A\). The probabilities are chosen such that they are the same for all the values in these random variables.</p>
+<p>We can put this data in a table &#40;DataFrame&#41;:</p>
+<pre><code class="language-julia">using AlgebraOfGraphics
+using CairoMakie
+using DataFrames
+using Statistics: mean</code></pre>
+<pre><code class="language-julia">df &#61; let
+	X &#61; collect&#40;1:7&#41;
+	A &#61; &#91;x &#43; 1 for x in X&#93;
+	B &#61; &#91;0.5x &#43; 3 for x in X&#93;
+	C &#61; &#91;5 for x in X&#93;
+	D &#61; reverse&#40;A&#41;
+	DataFrame&#40;; X, A, B, C, D&#41;
+end</code></pre>
+<table><tr><th align="right">X</th><th align="right">A</th><th align="right">B</th><th align="right">C</th><th align="right">D</th></tr><tr><td align="right">1</td><td align="right">2</td><td align="right">3.5</td><td align="right">5</td><td align="right">8</td></tr><tr><td align="right">2</td><td align="right">3</td><td align="right">4.0</td><td align="right">5</td><td align="right">7</td></tr><tr><td align="right">3</td><td align="right">4</td><td align="right">4.5</td><td align="right">5</td><td align="right">6</td></tr><tr><td align="right">4</td><td align="right">5</td><td align="right">5.0</td><td align="right">5</td><td align="right">5</td></tr><tr><td align="right">5</td><td align="right">6</td><td align="right">5.5</td><td align="right">5</td><td align="right">4</td></tr><tr><td align="right">6</td><td align="right">7</td><td align="right">6.0</td><td align="right">5</td><td align="right">3</td></tr><tr><td align="right">7</td><td align="right">8</td><td align="right">6.5</td><td align="right">5</td><td align="right">2</td></tr></table>
+<p>and plot the variables to obtain the following figure:</p>
+<pre><code class="language-julia">sdf &#61; stack&#40;df, &#91;:A, :B, :C, :D&#93;&#41;
+xv &#61; data&#40;sdf&#41; * mapping&#40;:X, :value; color&#61;:variable&#41;
+draw&#40;xv&#41;</code></pre>
+<p><img src="/assets/correlations/data.png" alt="Data visualization" /></p>
+<p>To get an intuition for the covariance, consider a negative covariance. The covariance will be negative if when \(X\) is larger than its mean, \(Y\) tends to be smaller than its mean &#40;Rice, 2006&#41;. To get a example of a perfect negative linear relationship look at \(A\) and \(D\). When \(A\) is larger than its mean, \(D\) is smaller than its mean and vice versa. Therefore \(cov(A, D)\) should be negative. We can manually check this:</p>
+\[\mu_A = \mu_B = \mu_C = \mu_D = 5,\]
+\[(A - \mu_A) = [-3, -2, -1, 0, 1, 2, 3], \: \text{and}\]
+\[(D - \mu_D) = [3, 2, 1, 0, -1, -2, -3].\]
+<p>So,</p>
+\[(A - \mu_A)(D - \mu_D) = [-9, -4, -1, 0, -1, -4, -9], \: \text{and}\]
+\[\Sigma [(A - \mu_A)(D - \mu_D)] = -28.\]
+<p>Finally,</p>
+\[cov(A, D) = \frac{-28}{7} = -4.\]
+<p>In this calculation we have ignored Bessel&#39;s correction. With Bessel&#39;s correction the result would have been \(cov(A, D) = \tfrac{-28}{n - 1} = \tfrac{-28}{6} \approx - 4.6\). It can be observed that the negative result is caused by the fact that for each multiplication in \((A - \mu_A)(D - \mu_D)\) either \((A - \mu_A)\) is negative or \((D - \mu_D)\) is negative, hence \((A - \mu_A)(D - \mu_D)\) is negative. The results for the other covariances when comparing with \(A\) are</p>
+\[cov(A, A) = 4,\]
+\[cov(A, B) = 2, \: \text{and}\]
+\[cov(A, C) = 0,\]
+<p>as calculated in Appendix 1. The numbers in Example 1 are all integers. In real world situations that is often not the case. This will lead to rounding errors. To minimise the rounding errors the covariance can be rewritten. The rewrite uses the <a href="https://brilliant.org/wiki/linearity-of-expectation/">linearity of expectation</a>, that is, \(E[X + Y] = E[X] + E[Y]\):</p>
+\[\begin{aligned}
+cov(X, Y) & = E((X - \mu_X)(Y - \mu_Y)) \\
+& = E(XY - \mu_Y X - \mu_X Y + \mu_X \mu_Y) \\
+& = E(XY) - \mu_Y E(X) - \mu_X E(Y) + \mu_X \mu_Y \\
+& = E(XY) - \mu_X \mu_Y.
+\end{aligned}\]
+<p>To appreciate the efficacy of this rewrite we redo the calculation for \(cov(A, D)\), see Example 2.</p>
+<h3 id="example_2"><a href="#example_2" class="header-anchor">Example 2</a></h3>
+\[AD = [16, 21, 24, 25, 24, 21, 16],\]
+\[E(AD) = \text{mean}(AD) = \frac{\Sigma[AD]}{7} = 21, \: \text{and}\]
+\[\mu_A \mu_D = 5 \cdot 5 = 25.\]
+<p>So,</p>
+\[cov(A, D) = 21 - 25 = -4,\]
+<p>as was also obtained from the earlier calculation.</p>
+<h2 id="variance_and_standard_deviation"><a href="#variance_and_standard_deviation" class="header-anchor">Variance and standard deviation</a></h2>
+<p>The next step in being able to explain the correlation coefficient is defining the <em>standard deviation</em>, which is defined in terms of the <em>variance</em>. The variance is a &quot;measure of the spread around a center&quot; &#40;Rice, 2006&#41;. The standard deviation is about how spread out the values of the random variable are, on average, about its expectation.</p>
+<p>Formally, the variance of \(X\) is</p>
+\[\sigma_X^2 = E \{ [ X - E(X) ]^2 \},\]
+<p>and the standard deviation of \(X\) is</p>
+\[\sigma_X = \sqrt{\sigma_X^2} = \sqrt{E \{ [ X - E(X) ]^2 \} }.\]
+<p>where \(\sigma^2\) and \(\sigma\) are the common denotations for these concepts.</p>
+<h2 id="the_correlation_coefficient"><a href="#the_correlation_coefficient" class="header-anchor">The correlation coefficient</a></h2>
+<p>The covariance can be used to get a sense of how much two variables are associated. However, the size of the result depends not only on the strength of the association, but also on the data. For example, if there is a huge size difference in the numbers in a variable, then the covariance could appear large while in fact the correlation is negligible. The covariance is based on the dispersion of the values for two variables around their expectation. So, to normalize the covariance we can divide it by the standard deviation.</p>
+<p>The Pearson <em>correlation coefficient</em> between \(X\) and \(Y\) is defined as</p>
+\[r = \frac{cov(X, Y)}{\sigma_X \sigma_Y}.\]
+<p>Note that the units cancel out, hence the correlation is dimensionless. For the correlation coefficient it holds that \(-1 \le r \le 1\), as can be shown by using the <a href="https://math.stackexchange.com/questions/564751">Cauchy-Schwarz inequality</a>.</p>
+<p>To show that when \(X\) and \(Y\) are independent, then \(r = 0\) reason as follows. When \(X\) and \(Y\) are independent, then \(E(XY) = E(X)E(Y)\). We know that \(cov(X, Y) = E(XY) - \mu_x \mu_Y\). Since \(\mu_x = E(X)\) and \(\mu_y = E(Y)\), \(cov(X, Y) = 0\), and by that \(r = 0\).</p>
+<p>For a set of sample data, the correlation coefficient is usually denoted by \(r\)   &#40;Gupta, 2014&#41;. The association is considered weak, moderate or strong when respectively \(|r|\) is lower than 0.3, \(|r|\) is in between 0.3 and 0.7, or \(|r|\) is higher than 0.7.</p>
+<h2 id="conclusion"><a href="#conclusion" class="header-anchor">Conclusion</a></h2>
+<p>The coefficient reduces two sets of values to a number representing their relatedness. As with any reduction, you will lose information. In this case, the number does not say anything about how linear the relationship is. Instead the correlation coefficient <strong>assumes linearity</strong>. It can be observed from the calculation in Example 1 that the reported number is meaningless if the variables are not reasonably linear.</p>
+<p>If the correlation coefficient is -1 or 1, then we know that the relationship is perfectly linear. In that case, values from \(X\) can be used to determine values in \(Y\) and vice versa.</p>
+<p>Finally, it should be noted that correlation does not imply causation, or more clearly: &quot;Causation causes correlation, but not necessarily the converse&quot; &#40;Gupta, 2014&#41;.</p>
+<h2 id="references"><a href="#references" class="header-anchor">References</a></h2>
+<p>Gupta, B. C., &amp; Guttman, I. &#40;2014&#41;. Statistics and probability with applications for engineers and scientists. John Wiley &amp; Sons.</p>
+<p>Hogg, R. V., McKean, J., &amp; Craig, A. T. &#40;2018&#41;. Introduction to mathematical statistics. Pearson Education.</p>
+<p>Rice, J. A. &#40;2006&#41;. Mathematical statistics and data analysis. Cengage Learning.</p>
+<h2 id="appendix"><a href="#appendix" class="header-anchor">Appendix</a></h2>
+<pre><code class="language-julia">function mycov&#40;X, Y&#41;
+    min_mean_x&#40;x&#41;::Float64 &#61; x - mean&#40;X&#41;
+    min_mean_y&#40;y&#41;::Float64 &#61; y - mean&#40;Y&#41;
+    
+    return mean&#40;min_mean_x.&#40;X&#41; .* min_mean_y.&#40;Y&#41;&#41;
+end;</code></pre>
+<pre><code class="language-julia">mycov&#40;df.A, df.A&#41;</code></pre>
+<pre><code class="language-julia">4.0</code></pre>
+<pre><code class="language-julia">mycov&#40;df.A, df.B&#41;</code></pre>
+<pre><code class="language-julia">2.0</code></pre>
+<pre><code class="language-julia">mycov&#40;df.A, df.C&#41;</code></pre>
+<pre><code class="language-julia">0.0</code></pre>
+<pre><code class="language-julia">mycov&#40;df.A, df.D&#41;</code></pre>
+<pre><code class="language-julia">-4.0</code></pre>
+<p>Built with Julia 1.11.3 and</p>
+<p>AlgebraOfGraphics 0.8.13 <br />CairoMakie 0.12.16 <br />DataFrames 1.7.0 <br />Statistics 1.11.1 </p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

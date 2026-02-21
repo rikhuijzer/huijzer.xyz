@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> How fast is CeTZ-Plot? - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="How fast is CeTZ-Plot?" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Benchmarking the CeTZ-Plot library against gnuplot, and matplotlib." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="How fast is CeTZ-Plot?" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> How fast is CeTZ-Plot? </h1> 
+   <span class="page-date"> 2025-03-19 </span> 
+</div>
+<div class="franklin-content">
+<p>In a <a href="/posts/cetz-plot-csv">recent post</a>, I showed how CeTZ-Plot can be used to plot data from a CSV file. I posted this on Reddit and got some <a href="https://www.reddit.com/r/rust/comments/1je5ef2/plotting_a_csv_file_with_typst_and_cetzplot/">interesting comments</a>. One comment was that CeTZ-Plot was too slow for plotting data with 90k rows to SVG. This could be due to SVG being a vector format, so it will always add all 90k points even if they are on top of each other. It&#39;s probably a better idea to plot PNG in such cases.</p>
+<p>But let&#39;s still see how fast CeTZ-Plot is. This is actually an interesting question in general because CeTZ-Plot is written in Typst. Typst is a new typesetting system similar to LaTeX. Writing in this system is probably slower than writing in a more optimized language. But on the other hand, Typst was written in Rust so maybe the performance is not too bad.</p>
+<p>Only one way to find out: let&#39;s benchmark it&#33; Here I keep the benchmark very simple. In general, I&#39;m just interested in how fast the library can plot a simple scatter plot. For the benchmark, I will benchmark how long it takes on the command line to generate the PNG file. In the case of CeTZ-Plot, and matplotlib, this includes the time it takes to load the packages. I&#39;ve tried to benchmark fastplotlib too, but according to the FAQ &quot;<em>fastplotlib is not intended for creating _static</em> publication figures._&quot; Also, the image quality is set to 300 DPI and a resolution of 1000x1000 pixels. And the ticks and limits are hardcoded to be the same for all plots. Warmup runs are allowed so the packages should be installed already during the benchmark. For the benchmark, I&#39;ll use <a href="https://github.com/sharkdp/hyperfine">hyperfine</a>. Also, the benchmark runs on a MacBook with an M2 Pro chip. I expect that CeTZ-Plot will be a lot slower than gnuplot, matplotlib, and fastplotlib, but let&#39;s see.</p>
+<h2 id="the_data"><a href="#the_data" class="header-anchor">The Data</a></h2>
+<p>To generate the data, I used the following Python script:</p>
+<pre><code class="language-python">#&#33;/usr/bin/env -S uv run --script
+# /// script
+# requires-python &#61; &quot;&gt;&#61;3.12&quot;
+# dependencies &#61; &#91;
+#     &quot;numpy&quot;,
+# &#93;
+# ///
+import numpy as np
+import csv
+import time
+
+np.random.seed&#40;42&#41;
+
+sizes &#61; &#91;100, 1_000, 10_000, 100_000, 1_000_000&#93;
+
+for size in sizes:
+    with open&#40;f&quot;data_&#123;size&#125;.csv&quot;, &quot;w&quot;, newline&#61;&quot;&quot;&#41; as f:
+        writer &#61; csv.writer&#40;f&#41;
+        writer.writerow&#40;&#91;&quot;x&quot;, &quot;y&quot;&#93;&#41;
+        x &#61; np.random.uniform&#40;low&#61;0.0, high&#61;1.0, size&#61;size&#41;
+        y &#61; np.random.uniform&#40;low&#61;0.0, high&#61;1.0, size&#61;size&#41;
+        for i in range&#40;size&#41;:
+            writer.writerow&#40;&#91;x&#91;i&#93;, y&#91;i&#93;&#93;&#41;
+    
+    print&#40;f&quot;Generated dataset with &#123;size&#125; points&quot;&#41;</code></pre>
+<h2 id="matplotlib"><a href="#matplotlib" class="header-anchor">Matplotlib</a></h2>
+<p>To plot the data in matplotlib, I used the following script:</p>
+<pre><code class="language-python">#&#33;/usr/bin/env -S uv run --script
+# /// script
+# requires-python &#61; &quot;&#61;&#61;3.13.2&quot;
+# dependencies &#61; &#91;
+#     &quot;matplotlib&#61;&#61;3.10&quot;,
+# &#93;
+# ///
+import matplotlib.pyplot as plt
+import sys
+import csv
+
+file &#61; sys.argv&#91;1&#93;
+data &#61; csv.reader&#40;open&#40;file&#41;&#41;
+x, y &#61; zip&#40;*data&#41;
+
+plt.scatter&#40;x, y&#41;
+plt.savefig&#40;&quot;matplotlib.png&quot;&#41;</code></pre>
+<p>As a test, this is how the plot looks:</p>
+<pre><code class="language-sh">&#36; ./matplot.py data_100.csv</code></pre>
+<p><img src="/assets/cetz-plot-speed/matplotlib.png" alt="A matplotlib plot" /></p>
+<h2 id="cetz-plot"><a href="#cetz-plot" class="header-anchor">CeTZ-Plot</a></h2>
+<p>For CeTZ-Plot, I used the following script:</p>
+<pre><code class="language-typ">#import &quot;@preview/cetz:0.3.2&quot;: canvas, draw
+#import &quot;@preview/cetz-plot:0.1.1&quot;: plot
+
+#set page&#40;width: 3.333in, height: 3.333in, margin: 0in&#41;
+
+#let file &#61; sys.inputs.file
+#let data &#61; csv&#40;file, row-type: dictionary&#41;
+
+#let points &#61; data.map&#40;row &#61;&gt; &#40;float&#40;row.x&#41;, float&#40;row.y&#41;&#41;&#41;
+
+#align&#40;center &#43; horizon&#41;&#91;
+  #canvas&#40;&#123;
+    import draw: *
+    
+    plot.plot&#40;
+      // The size of the plot. The page is set to auto so it will automatically
+      // scale the page to fit the plot.
+      size: &#40;6.5, 6.5&#41;,
+      x-label: none,
+      y-label: none,
+      x-min: -0.2,
+      x-max: 1.2,
+      y-min: -0.2,
+      y-max: 1.2,
+      x-tick-step: 1,
+      y-tick-step: 1,
+      &#123;
+          plot.add&#40;
+              points,
+              style: &#40;stroke: none&#41;,
+              mark: &quot;o&quot;,
+          &#41;
+      &#125;
+    &#41;
+  &#125;&#41;
+&#93;</code></pre>
+<p>and ran it with Typst 0.13.1. Which for 100 points returns the following image:</p>
+<pre><code class="language-sh">&#36; typst compile --ppi&#61;300 --format&#61;png --input file&#61;data_100.csv plot.typ cetz.png</code></pre>
+<p><img src="/assets/cetz-plot-speed/cetz.png" alt="A CeTZ-Plot plot" /></p>
+<h2 id="gnuplot"><a href="#gnuplot" class="header-anchor">gnuplot</a></h2>
+<pre><code class="language-gnuplot">set terminal pngcairo size 1000,1000 enhanced font &#39;,10&#39;
+set output &#39;gnuplot.png&#39;
+set datafile separator comma
+set xtics &#40;0, 1&#41;
+set ytics &#40;0, 1&#41;
+set xrange &#91;-0.2:1.2&#93;
+set yrange &#91;-0.2:1.2&#93;
+unset key
+plot ARG1 every ::1 using 1:2 with points pt 7 ps 1</code></pre>
+<p>Which for 100 points looks like this:</p>
+<pre><code class="language-sh">&#36; gnuplot -c gnuplot.gp data_100.csv</code></pre>
+<p><img src="/assets/cetz-plot-speed/gnuplot.png" alt="A gnuplot plot" /></p>
+<h2 id="benchmark"><a href="#benchmark" class="header-anchor">Benchmark</a></h2>
+<p>Benchmarks were executed with the following command:</p>
+<pre><code class="language-sh">&#36; hyperfine --warmup&#61;3 --runs&#61;5 &quot;&lt;command&gt;&quot;</code></pre>
+<p>The results for the mean ± σ are shown in the table below:</p>
+<table><tr><th align="right">100</th><th align="right">1,000</th><th align="right">10,000</th><th align="right">100,000</th><th align="right">1,000,000</th></tr><tr><td align="right">matplotlib</td><td align="right">504.6 ms ± 6.7 ms</td><td align="right">511.3 ms ± 10.4 ms</td><td align="right">517.4 ms ± 4.5 ms</td><td align="right">674.3 ms ± 13.4 ms</td></tr><tr><td align="right">CeTZ-Plot</td><td align="right">500 ms ± 4.8 ms</td><td align="right">3.892 s ± 0.029 s</td><td align="right">39.459 s ± 0.420 s</td><td align="right"></td></tr><tr><td align="right">gnuplot</td><td align="right">120.6 ms ± 2.3 ms</td><td align="right">130.4 ms ± 1.5 ms</td><td align="right">204.8 ms ± 1.9 ms</td><td align="right">755.5 ms ± 19.1 ms</td></tr></table>
+<h2 id="conclusion"><a href="#conclusion" class="header-anchor">Conclusion</a></h2>
+<p>When plotted, the performance of the different libraries looks like this:</p>
+<p><img src="/assets/cetz-plot-speed/performance_comparison.svg" alt="A comparison of the performance of the different libraries" /></p>
+<p>As you can see, CeTZ-Plot starts to take much longer above 1,000 points. With 40 seconds, 10,000 points is still a possibility, but it starts to become unwieldy. At 10,000 points, gnuplot and matplotlib can still plot the data in less than a second. Only at 1,000,000 points does gnuplot start to take longer. Matplotlib appears to be the clear winner here. The performance barely suffers from more points even when going up to one million.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>

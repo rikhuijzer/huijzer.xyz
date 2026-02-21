@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<rss version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:georss="http://www.georss.org/georss">
+
+  <channel>
+    <title>
+      <![CDATA[  Rik Huijzer  ]]>
+    </title>
+    <link> https://huijzer.xyz </link>
+    <description>
+      <![CDATA[  A blog about statistics, programming and more  ]]>
+    </description>
+    <atom:link
+      href="https://huijzer.xyz/feed.xml"
+      rel="self"
+      type="application/rss+xml" />
+
+
+<item>
+  <title>
+    <![CDATA[  Encrypting and decrypting a secret with wasm_bindgen  ]]>
+  </title>
+  <link> https://huijzer.xyz/posts/wasm-crypto/index.html </link>
+  <guid> https://huijzer.xyz/posts/wasm-crypto/index.html </guid>
+  <description>
+    <![CDATA[  Using AES-GCM using the Web Crypto &#40;subtle.crypto&#41; API.  ]]>
+  </description>  
+    
+  <pubDate>Sat, 21 Feb 2026 00:00:00 +0000</pubDate>  
+  
+  
+  <atom:author>
+    <atom:name>Rik Huijzer</atom:name>
+  </atom:author>
+        
+</item>
+</channel></rss>

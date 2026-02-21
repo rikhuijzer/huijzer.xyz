@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+  
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> Statistical power from scratch - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="Statistical power from scratch" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="Explaining statistical power by first finding the binomial and normal distributions." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="Statistical power from scratch" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> Statistical power from scratch </h1> 
+   <span class="page-date"> 2019-12-29 </span> 
+</div>
+<div class="franklin-content">
+<p>In the 1970s the American government wanted to save fuel by allowing drivers to turn right at a red light <span class="bibref">(<a href="#reinhart2020">Reinhart (2020)</a>)</span>. Many studies found that this <em>Right-Turn-On-Red &#40;RTOR&#41;</em> change caused more accidents. Unfortunately, these studies concluded that the results were not statistically significant. Only years later, when combining the data, it was found that the changes were significant <span class="bibref">(<a href="#preusser1982">Preusser et al. (1982)</a>)</span>. Statisticians nowadays solve these kind of problems by considering not only significance, but also power. This post aims to explain and demonstrate power from scratch. Specifically, data is simulated to show power and the necessary concepts underlying power. The underlying concepts are the</p>
+<ul>
+<li><p><a href="#binomial-distribution">Binomial distribution</a>,</p>
+</li>
+<li><p><a href="#normal-distribution">Normal distribution</a>,</p>
+</li>
+<li><p><a href="#t-distribution">t-distribution</a> and the</p>
+</li>
+<li><p><a href="#ttest">t-test</a>,</p>
+</li>
+</ul>
+<p>to finally explain</p>
+<ul>
+<li><p><a href="#power">Power</a>.</p>
+</li>
+</ul>
+<p>There is also a</p>
+<ul>
+<li><p><a href="#conclusion">Conclusion</a>.</p>
+</li>
+</ul>
+<p>This post is not meant as a rigorous analysis of statistics, instead it aims to explain the concepts as clearly as possible. Therefore, the post contains many plots. To see how the plots are generated visit the <a href="/assets/power/power.html">R Markdown file</a>.</p>
+<h2 id="running_example"><a href="#running_example" class="header-anchor">Running example</a></h2>
+<p>To make the material more concrete a running example is used. Suppose the American government is trying to determine whether they should enable RTOR. They want to save fuel but only if it does not cause more deaths. Suppose that, on average, there are 100 accidents per year in Ohio. Suppose also that we &#40;as reader, but not as government&#41; know that with RTOR we go to an average of 120 accidents per year. We denote these means for the old and new situation by \(\mu_o\) and \(\mu_n\) respectively. When knowing these means, it is clear that RTOR should not be allowed. How soon could the government know this after only seeing the data?</p>
+<h2 id="binomial_distribution"><a href="#binomial_distribution" class="header-anchor">Binomial distribution</a></h2>
+<p>One way to generate data for this situation is as follows. Suppose 100 000 people turn right in Ohio per year. Since the average is 100 accidents per year, the probability of having an accident when turning right is \(\tfrac{100}{100 \: 000} = 0.001\). With RTOR, this probability becomes \(P_n = \tfrac{120}{100 \: 000} = 0.0013\). We can now simulate the situation by taking 100 000 random numbers between 0 and 1 and seeing whether the sampled number is below \(P_n\). &#40;Specifically, the random numbers come from an uniform distribution between 0 and 1.&#41; After one year, the simulation reports that 132 accidents have occurred. It makes sense that a government would not change opinion on that single report. Next, we simulate what happens after the passing of 20 years.</p>
+<p><em>Histogram for the number of accidents over 20 years</em> <img src="/assets/power/multiple-years.svg" alt="Data after multiple years" /></p>
+<p>After 20 years a government would be very likely to change opinion. It can be seen that the histogram starts to approximate a bell curve. The simulation consists of \(n\) independent experiments, each with a boolean-valued outcome. As the number of years approach infinity, the histogram will approach a <em>binomial distribution</em>. A binomial distribution is denoted as \(B(n, p)\), where \(n\) is the number of trials and \(p\) the success probability for each trial. Next, two density plots are shown for 100 and 1000 years. The plots are combined with a line for \(B(100 \: 000, 0.0012)\). The figures show that the density plot approaches aforementioned binomial distribution.</p>
+<p><em>Histogram for the number of accidents over 100 years</em> <img src="/assets/power/many-years.svg" alt="Data after many years" /></p>
+<p><em>Histogram for the number of accidents over 1000 years</em> <img src="/assets/power/many-many-years.svg" alt="Data after many years" /></p>
+<p>At first thought, it might be strange that data generated by an uniform distribution approaches a smooth bell curve. The simplest way to see this is via a Galton box. A Galton box is a device invented by Sir Francis Galton; see the next image for a schematic view of the device.</p>
+<p><em>Galton box &#40;source: Wikimedia Commons&#41;</em> <img src="/assets/power/galton-box.svg" alt="" /></p>
+<p>The picture shows a board with rows of pins. When balls are dropped from the top they will bounce randomly to the left or the right at each pin. In the bottom a bell curve will arise. With this image the bell curve makes sense. For example, it is very unlikely that a ball will fall to the right at each pin.</p>
+<h2 id="normal_distribution"><a href="#normal_distribution" class="header-anchor">Normal distribution</a></h2>
+<p>The central limit theorem &#40;CLT&#41; states that when many independent and identically distributed random variables with finite mean and variance are aggregated, the result approaches a <em>normal distribution</em>. The normal distribution is denoted by \(N(\mu, \sigma^2)\) with mean \(\mu\) and variance \(\sigma^2\). Note that in general in statistics, &quot;Greek letters for measures of the population &#40;called &#39;parameters&#39;&#41; and Latin letters are used for measures of one or more samples &#40;called &#39;statistics&#39;&#41;&quot; <span class="bibref">(<a href="#smith2008">Smith (2018)</a>)</span>. Let \(X\) be a random variable, then \(\mu\) and \(\sigma^2\) are defined as</p>
+\[ \mu = \sum_{x \in X} \: xp(x), \: \text{and} \]
+\[ \sigma^2 = E{[X - E(X)]^2}. \]
+<p>The following table lists \(\mu_n\) and \(\sigma^2_n\) for the histograms shown above.</p>
+<table><tr><th align="right">Number of years</th><th align="right">\(\boldsymbol{\mu_n}\)</th><th align="right">\(\boldsymbol{\sigma^2_n}\)</th></tr><tr><td align="right">20</td><td align="right">119.7</td><td align="right">66.6</td></tr><tr><td align="right">100</td><td align="right">120.9</td><td align="right">106.6</td></tr><tr><td align="right">1000</td><td align="right">120.1</td><td align="right">117.3</td></tr></table>
+<p>After more and more years the mean starts to approach the expected mean of 120. The data approaches the binomial distribution by definition. Specifically, it will approach \(B(100 \: 000, 0.0012)\). By the CLT and the fact that \(n\) is large, the data is also close to \(N(120, \sqrt{120})\), as can be seen when comparing the distributions.</p>
+<p><em>Two binomial distributions and a normal distribution</em> <img src="/assets/power/binomial-and-normal-distributions.svg" alt="Comparing two binomial distributions" /></p>
+<h3 id="sampling_distribution"><a href="#sampling_distribution" class="header-anchor">Sampling distribution</a></h3>
+<p>When taking only a few samples, there will be a lot of variance. This will cause a sampling distribution to be wider than a normal distribution. For example, we can plot the distribution for taking one sample from \(N(120, \sqrt(120))\), repeated 10 000 times.</p>
+<p><em>Histogram for taking one sample &#40;10 000 times&#41;</em> <img src="/assets/power/one-sample-distribution.svg" alt="" /></p>
+<p>The distribution is all over the place. Some samples returned 160, which is very unlikely, and therefore does not occur often. Returning 160 when averaging two samples is even more unlikely.</p>
+<p><em>Histogram for taking the mean over two samples &#40;10 000 times&#41;</em> <img src="/assets/power/two-sample-distribution.svg" alt="" /></p>
+<p>After more and more samples the variance of the histogram decreases. This is caused by taking the average over the samples. The more samples in the set, the less likely it is to observe extreme outliers.</p>
+<p>So, the pattern for the variance in the distribution is clear. For easier comparison with drawn samples it is convenient to standardize the distribution. The distribution&#39;s mean can be removed to get a distribution around zero.</p>
+<p><em>Histogram for the distribution of taking two samples around zero</em> <img src="/assets/power/two-sample-without-mean.svg" alt="" /></p>
+<p>The width still depends on the data. This can be standardized by dividing each result by the distribution&#39;s standard deviation.</p>
+<p><em>Histogram for the distribution of taking two samples around zero with a normalized variance</em> <img src="/assets/power/two-sample-without-sd.svg" alt="" /></p>
+<p>After also correcting for the sample size a standardized sampling distribution remains. This distribution is known as a <em>t-distribution</em> \(T(d)\) where \(d\) denotes the degrees of freedom with \(d = n - 1\).</p>
+<p><em>Various t-distributions compared to the standard normal distribution</em> <img src="/assets/power/normal-and-t-distributions.svg" alt="" /></p>
+<h2 id="t-test"><a href="#t-test" class="header-anchor">t-test</a></h2>
+<p>Now distributions are known, statistical tests can be conducted. Let \(S_o\) and \(S_n\) be two sets of samples. The samples come from two normal distributions with a variance of 120. Specifically, \(S_o\) is a set from \(N(\mu_o, \sqrt{120})\), and \(S_n\) is a set from \(N(\mu_n, \sqrt{120})\).</p>
+<table><tr><th align="right">Index</th><th align="right">\(\boldsymbol{S_o}\)</th><th align="right">\(\boldsymbol{S_n}\)</th></tr><tr><td align="right">1</td><td align="right">110.6</td><td align="right">117.0</td></tr><tr><td align="right">2</td><td align="right">113.9</td><td align="right">112.9</td></tr><tr><td align="right">3</td><td align="right">105.2</td><td align="right">120.7</td></tr><tr><td align="right">4</td><td align="right">105.6</td><td align="right">98.5</td></tr><tr><td align="right">5</td><td align="right">95.5</td><td align="right">131.2</td></tr><tr><td align="right">6</td><td align="right">100.8</td><td align="right">126.0</td></tr><tr><td align="right">7</td><td align="right">96.9</td><td align="right">104.3</td></tr><tr><td align="right">8</td><td align="right">102.8</td><td align="right">114.0</td></tr><tr><td align="right">9</td><td align="right">110.5</td><td align="right">127.6</td></tr><tr><td align="right">10</td><td align="right">84.6</td><td align="right">130.3</td></tr></table>
+<p>Suppose a scientist is looking into the situation. The scientist states that any found result should be with 95&#37; confidence. \(S_o\) will be compared with \(S_n\) in an effort to see whether \(\mu_o\) differs from \(\mu_n\), that is, \(\mu_o < \mu_n\) or \(\mu_o > \mu_n\). This is called a <em>t-test</em>. For a t-test normality should be validated. Normality tests are omitted here.</p>
+<p>Let \(\overline{x}\) be the sample mean, \(s\) the sample standard deviation and \(n\) the sample size. Suppose two years have passed. The number of accidents for these years are 117.0 and 112.9. Then, \(\overline{x} = 114.95\), \(s \approx 2.899\), and \(n = 2\). To obtain the t-distribution values have been normalized. Therefore, the researcher also normalizes the output for the sample according to</p>
+\[ t = \frac{\overline{x} - \mu}{s / \sqrt{n}}. \]
+<p>The t-value becomes \(t \approx 7.293\). To test the significance of this \(t\) value it is compared with a <em>critical value</em>. The critical value denotes the boundary of a confidence interval &#40;CI&#41; on the t-distribution. The t-value can be compared with a one-sided or two-sided CI. Below the 60&#37; two-sided, and the 80&#37; one-sided confidence intervals are colored to get an intuition about the relationship between the intervals. Note that</p>
+\[
+\begin{aligned}
+P(-a < T(1) < a) & = 60\%, \: \text{and} \\
+P(T(1) < a) & = 80\%. \\
+\end{aligned}
+\]
+<p><em>T&#40;1&#41; and the 80&#37; one-sided and 60&#37; two-sided confidence intervals</em> <img src="/assets/power/t-one-versus-two-sided.svg" alt="" /></p>
+<p>So, the scientist tries to determine whether \(\mu_o > \mu_n\) or \(\mu_o < \mu_n\). This is reason to look at the two-sided CI. The calculated t-value is compared to the 95&#37; two-sided critical value.</p>
+<p><em>Calculated t-value compared to critical values</em> <img src="/assets/power/t-and-critical-values.svg" alt="" /></p>
+<p>Since \(t < 12.706\) the scientist concludes that there is no significant difference between the sample and the population, that is, the scientist concludes that \(\mu_n = \mu_o\). So, RTOR does not cause more accidents.</p>
+<h2 id="power"><a href="#power" class="header-anchor">Power</a></h2>
+<p>When looking again after a few more years the results start to change.</p>
+<p><em>P-values for comparing \(S_n\) with \(u_o\)</em> <img src="/assets/power/power-one-sample.svg" alt="" /></p>
+<p>After more and more samples it becomes clear that there is a significant difference between the two samples. Suppose the researcher does not know \(\mu_o\), and instead has to guessed based on \(S_o\). The results will become less significant.</p>
+<p><em>P-values for comparing \(S_n\) with \(S_o\)</em> <img src="/assets/power/power-two-sample.svg" alt="" /></p>
+<p>The <em>power</em> &quot;describes the probability that a study will detect an effect when there is a genuine effect to be detected&quot; <span class="bibref">(<a href="#ellis2010">Ellis (2010)</a>)</span>. &#40;So, a higher power is better.&#41; From the plots it seems that the power depends on the sample size \(n\), significance criterion \(\alpha\), and some other effect which depend on the test and the samples. The latter is called the <em>effect size</em>.</p>
+<p>One way to calculate the effect size for the t-test is by using Cohen&#39;s d <span class="bibref">(<a href="#cohen1992">Cohen (1992)</a>)</span>. For two groups of samples \(a\) and \(b\), with respectively means \(m_a\) and \(m_b\), standard deviations \(s_a\) and \(s_b\), and sample size \(n_a\) and \(n_b\)</p>
+\[ d = \frac{m_a - m_b}{s_p}, \]
+<p>where</p>
+\[ s_p = \sqrt{\frac{(n_a-1)s_a^2 + (n_b-1)s_b^2}{(n_a - 1) + (n_b - 1)}} = \sqrt{\frac{(n_a-1)s_a^2 + (n_b-1)s_b^2}{n_a + n_b - 2}}. \]
+<p>When comparing the first two samples from \(\mu_n\) and \(\mu_o\) we get \(s_p \approx 2.632\) and \(d \approx 1.026\). The positive effect size \(d\) indicates that \(m_a > m_b\), that is, \(m_n > m_o\). Repeating this calculation for more samples shows that the effect size becomes larger and more reliable.</p>
+<p><em>Cohen&#39;s \(d\) for comparing \(S_n\) with \(S_o\)</em> <img src="/assets/power/d.svg" alt="" /></p>
+<p><span class="bibref"><a href="#ellis2010">Ellis (2010)</a></span> argues that &quot;effect size estimates need to be interpreted separately from tests of statistical significance&quot;. For example, a small effect size of r &#61; 0.04 might be huge if is it about Propranolol and heart attack survival. In effect it could mean a &quot;4&#37; decrease in heart attacks for people at risk&quot; <span class="bibref">(<a href="#ellis2010">Ellis (2010)</a>)</span>.</p>
+<p>For the running example it also makes sense to look at the effect size. After 4 samples the t-test shows insignificant results. Cohen&#39;s \(d\) shows that the samples from \(S_n\) are half a standard deviation higher than \(S_o\). Cohen would classify this as a medium effect <span class="bibref">(<a href="#cohen1992">Cohen (1992)</a>)</span>. After 5 samples the results are still insignificant. However, Cohen&#39;s \(d\) is higher than 1, which Cohen calls a large effect. Seeing such an &quot;insignificant&quot;, but large effect could make one doubt the safety of RTOR.</p>
+<p>Even though Cohen&#39;s rules of thumb can be useful, it is better to reason about the expected effect size and design the study around that. <span class="bibref">(<a href="#ellis2010">Ellis (2010)</a>)</span> provides various options for predicting effect sizes, namely</p>
+<ul>
+<li><p>refer to a meta-analysis examining the effect,</p>
+</li>
+<li><p>pool the effect size estimates of related work,</p>
+</li>
+<li><p>run a pretest,</p>
+</li>
+<li><p>estimate based on theory, or</p>
+</li>
+<li><p>create a dummy table to explore the trade-offs between various values for \(n\), power, and effect size.</p>
+</li>
+</ul>
+<p>Power formulas tend to be non-trivial. Therefore, most books advise to use power tables, or use software packages. This post will do the latter, and plot some results which are applicable to the running example. One could look at the required sample size to detect varying levels of effect sizes.</p>
+<p><em>Power as a function of the sample size and effect size</em> <img src="/assets/power/varying-d.svg" alt="" /></p>
+<p>For example, suppose the researcher expected the effect size \(d\) to be 0.50. &#40;A &quot;medium effect&quot; according to Cohen.&#41; To be 60&#37; sure of not making a type II error, the researcher needs about 40 samples per group. When having only 2 samples per group, the power is 0.06. This means that the chance of having a type II error is 1 - 0.06 &#61; 94&#37;.</p>
+<p>In the case of RTOR it would be better to think about the effect of making a type I versus a type II error. The researcher would prefer raising a false alarm about the danger &#40;type I error&#41; over not raising an alarm while one should have &#40;type II error&#41;. Assume a medium effect size \(d\) of 0.50. Then the plot for the type I error versus the type II error would look as follows.</p>
+<p><em>Power as a function of sample size and significance level</em> <img src="/assets/power/varying-n.svg" alt="" /></p>
+<p>Specifically, for \(\alpha = 0.05\) we have:</p>
+<table><tr><th align="right">Number of samples</th><th align="right">Power</th></tr><tr><td align="right">2</td><td align="right">0.06</td></tr><tr><td align="right">20</td><td align="right">0.34</td></tr><tr><td align="right">80</td><td align="right">0.88</td></tr></table>
+<p>This corresponds with the earlier observation that tests will only yield significant results if the sample size is high enough.</p>
+<h2 id="conclusion"><a href="#conclusion" class="header-anchor">Conclusion</a></h2>
+<p>Much of the statistics literature is based on a common set of notions &#40;for example, distributions and variance&#41;. It is assumed that the reader is familiar with all the notions. Working through these concepts by starting from scratch has been insightful. To do this the working example proved to be an useful common thread. Most fundamentals could be visualised surprisingly easy. For example, the normal, binomial and t distribution can be obtained by drawing many random values between 0 and 1.</p>
+<p>Even though the example was clear, power analysis remains vague. This is due to the fact that real world information needs to be taken into account. For example, in most situations small effects are of little interest, while in others they might save hundreds of lifes per year. This post has given a brief introduction to power analysis, and omitted many aspects. For a more detailed description see <span class="bibref"><a href="#ellis2010">Ellis (2010)</a></span>.</p>
+<h3 id="references"><a href="#references" class="header-anchor">References</a></h3>
+<p><a id="cohen1992" class="anchor"></a> Cohen, J. &#40;1992&#41;. A power primer. Psychological bulletin, 112&#40;1&#41;, 155.</p>
+<p><a id="ellis2010" class="anchor"></a> Ellis, P. D. &#40;2010&#41;. The Essential Guide to Effect Sizes. Cambridge University Press.</p>
+<p><a id="preusser1982" class="anchor"></a> Preusser, D. F., Leaf, W. A., DeBartolo, K. B., Blomberg, R. D., &amp; Levy, M. M. &#40;1982&#41;. The effect of right-turn-on-red on pedestrian and bicyclist accidents. Journal of safety research, 13&#40;2&#41;, 45-55.</p>
+<p><a id="reinhart2020" class="anchor"></a> Reinhart, A. Statistical power and underpowered statistics. <a href="https://www.statisticsdonewrong.com/power.html">https://www.statisticsdonewrong.com/power.html</a>. Accessed: 2020-02-07.</p>
+<p><a id="smith2008" class="anchor"></a> Smith, W &#40;2018&#41;. The Mathematical Symbols used in Statistics. <a href="https://ocw.smithw.org/csunstatreview/statisticalsymbols.pdf">https://ocw.smithw.org/csunstatreview/statisticalsymbols.pdf</a>. Accessed: 2020-02-13.</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+    
+  </body>
+</html>

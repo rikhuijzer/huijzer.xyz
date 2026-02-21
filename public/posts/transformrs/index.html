@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/libs/katex/katex.min.css">
+
+   <!-- clipboard.js -->
+<script defer src="/libs/clipboard.min.js"></script>
+
+<!-- highlight.js -->
+<link rel="stylesheet" href="/libs/highlight/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/libs/highlight/github-dark.min.css" media="(prefers-color-scheme: dark)">
+
+<script defer src="/libs/highlight/highlight.min.js"></script>
+<script defer src="/libs/highlight/julia.min.js"></script>
+<script defer src="/libs/highlight/rust.min.js"></script>
+
+<script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+        hljs.highlightAll();
+    });
+</script>
+ 
+  <link rel="stylesheet" href="/css/franklin.css">
+  <link rel="stylesheet" href="/css/basic.css">
+  <link rel="icon" href="/assets/favicon.png">
+   <title> The transformrs crate: Interface for AI API providers - Rik Huijzer </title> 
+  
+
+  <meta property="og:title" content="The transformrs crate: Interface for AI API providers" />
+  <meta property="og:type" content="article" /> 
+  <meta property="og:description" content="(In)famously, Rust has a bad reputation for AI and is 'not learning yet', but I think it is ready." />
+  <!-- <meta property="og:image" content="{{website_url}}{{requiredfill image}}" /> -->
+
+  <meta name="twitter:title" content="The transformrs crate: Interface for AI API providers" />
+  <meta name="twitter:card" content="summary" />
+</head>
+<body>
+  <header>
+<div class="blog-name"><a href="/">HUIJZER.XYZ</a></div>
+<nav>
+  <ul>
+    <li><a href="/posts/">Blog</a></li>
+    <li><a href="/about/">About</a></li>
+    <li><a type="application/rss+xml" href="https://huijzer.xyz/feed.xml">
+      RSS
+      </a></li>
+  </ul>
+</nav>
+</header>
+
+
+<div class="franklin-content">
+   <h1 class="page-title"> The transformrs crate: Interface for AI API providers </h1> 
+   <span class="page-date"> 2025-02-06 </span> 
+</div>
+<div class="franklin-content">
+<p>Recently, I was thinking again about where AI is going. I was wondering what I as a developer should, or should not, be building. I wrote a <a href="/posts/ai-learning-rate/">post</a> about my thoughts and concluded two things:</p>
+<p>Firstly, cloud-based AI gets much cheaper every year, namely about 90&#37; cheaper. If your AI application costs &#36;1 per day to run now, next year it&#39;ll cost 10 cents, and just a penny the year after that. And while the price drops, the models keep getting better.</p>
+<p>Secondly, the best AI tools don&#39;t necessarily come from the big technology companies. Take Cursor AI for example. Microsoft had everything needed to make the best AI code editor - the most GPUs, the most popular code editor &#40;Visual Studio&#41;, and years of AI experience. But a small startup built Cursor, which many developers now prefer. The same happened with DeepSeek. Google, Meta, Microsoft, and Amazon are all spending billions on developing the best models. But DeepSeek came out of nowhere and delivered great results. This isn&#39;t new. The same thing happened with Google in the early 2000s. Altavista was the biggest search engine until Google, a small newcomer, made something better.</p>
+<p>This got me thinking about building AI tools. It&#39;s probably time to design new tools from the ground up instead of taking existing tools and putting AI on top. This means we are back at the exciting time of hackers/tinkerers in the 2000s, where young people would come up with the new ideas. Like Aaron Swartz who helped develop RSS, the technical achitecture for creative commons, and Reddit.</p>
+<p>This got me thinking about how to run these models. I looked into running the state-of-the-art DeepSeek R1 model locally. The results weren&#39;t great. You need a <a href="https://digitalspaceport.com/how-to-run-deepseek-r1-671b-fully-locally-on-2000-epyc-rig/">&#36;2000 EPYC server</a> just to run the model, and it&#39;s very slow - about 2-3 tokens per second. That means waiting 10 to 20 minutes for one response. Also, you have to install many dependencies.</p>
+<p>Running AI locally has clear benefits. You don&#39;t depend on anyone else, you&#39;re not locked into a provider, and you won&#39;t get surprise bills. But there&#39;s a simple choice to make:</p>
+<ol>
+<li><p>Buy &#36;2000 worth of hardware to run models locally, or</p>
+</li>
+<li><p>Use cloud services at &#36;0.60 per million tokens &#40;probably &#36;0.06 next year&#41;.</p>
+</li>
+</ol>
+<p>Looking at these options, the cloud is multiple orders of magnitude cheaper and probably the way to go.</p>
+<p>Now back to the question of what to build. I was thinking: What if I made a terminal tool that summarizes PDFs? You&#39;d point it at a PDF, wait a few seconds while it processes, and get a summary. Then you could pipe that summary to another tool to ask questions or create images. Or what about a tool that can take a text and read it out loud so you can hear whether the text flows well?</p>
+<p>Rust is a great language for building tools like this. It has great support for distributing applications via either <code>cargo</code> or as a binary. It&#39;s fast, has a great package manager, and has good support for parallel processing. But, compared to Python, Rust has way fewer AI related packages for running models locally. Because of this, some people conclude that Rust <a href="https://www.arewelearningyet.com/">is not learning yet</a>. But Rust actually can learn if we use the cloud. All you need is good HTTP and JSON support, which Rust has.</p>
+<p>However, I don&#39;t want to rely on just one cloud provider. What if the PDF tool stops working because the provider has an outage? But building both a PDF tool and handling multiple cloud providers seems like a lot of work.</p>
+<p>That&#39;s why I created the <a href="https://transformrs.org"><code>transformrs</code></a> crate. It is a Rust crate that provides a unified interface that handles multiple AI cloud providers, so you don&#39;t have to. For example, this is how you can ask LLama 3.3 to respond with &quot;hello world&quot;:</p>
+<pre><code class="language-rust">use transformrs::openai;
+use transformrs::Message;
+use transformrs::Provider;
+
+#&#91;tokio::main&#93;
+async fn main&#40;&#41; &#123;
+    let messages &#61; vec&#33;&#91;
+        Message &#123;
+            role: &quot;system&quot;.to_string&#40;&#41;,
+            content: &quot;You are a helpful assistant.&quot;.to_string&#40;&#41;,
+        &#125;,
+        Message &#123;
+            role: &quot;user&quot;.to_string&#40;&#41;,
+            content: &quot;This is a test. Please respond with &#39;hello world&#39;.&quot;.to_string&#40;&#41;,
+        &#125;,
+    &#93;;
+    let keys &#61; transformrs::load_keys&#40;&quot;.env&quot;&#41;;
+    let key &#61; keys.for_provider&#40;&amp;Provider::DeepInfra&#41;.unwrap&#40;&#41;;
+    let model &#61; &quot;meta-llama/Llama-3.3-70B-Instruct&quot;;
+    // Using the OpenAI-compatible API for chat completions.
+    let resp &#61; openai::chat_completion&#40;&amp;key, model, &amp;messages&#41;
+        .await
+        .unwrap&#40;&#41;;
+    println&#33;&#40;&quot;&#123;&#125;&quot;, resp.choices&#91;0&#93;.message.content&#41;;
+&#125;</code></pre>
+<p>&#40;More examples are available at <a href="https://transformrs.org">https://transformrs.org</a>.&#41;</p>
+<p>I&#39;ve tested this example hundreds of times while building the crate. It consistently returns &quot;hello world&quot; &#40;or variations like &quot;Hello world&quot; or &quot;hello world&#33;&quot;&#41;, which surprised me. It works much better than two years ago when I built a simple chat application using ChatGPT. Back then, responses were less predictable. Asking for &quot;hello world&quot; might get you something wordy like &quot;Here is the answer to your request: &#39;Hello world&#33;&#39;&quot;. Plus, it cost a lot more at &#36;60 per million tokens.</p>
+<p>To back up my claims about reliability and low cost, I&#39;ve set up automated tests in CI that run against the actual cloud APIs. This way, you can be sure the crate will work well with whichever provider you pick.</p>
+<p>The core idea is simple: one consistent interface for all providers. When you use <code>transformrs::chat_completion&#40;...&#41;</code> or other functions, they should just work, regardless of the provider you&#39;re using.</p>
+<p>The crate currently supports:</p>
+<ul>
+<li><p>Chat completions,</p>
+</li>
+<li><p>streaming chat completions,</p>
+</li>
+<li><p>text to image, and</p>
+</li>
+<li><p>text to speech.</p>
+</li>
+</ul>
+<p>And is tested against:</p>
+<ul>
+<li><p>OpenAI,</p>
+</li>
+<li><p>DeepInfra, and</p>
+</li>
+<li><p>Hyperbolic.</p>
+</li>
+</ul>
+<p>Based on the popularity of the crate, I will add more functions and providers. If you like this crate, consider trying it out or starring the repo at <a href="https://github.com/rikhuijzer/transformrs">https://github.com/rikhuijzer/transformrs</a>.</p>
+<p>Thanks for reading, and I&#39;m excited to see what you&#39;ll build&#33;</p>
+<div class="page-foot">
+  <div class="copyright">
+    Rik Huijzer.
+    The text is licensed under <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+    The code is licensed under the <a href="https://mit-license.org/">MIT License</a>.
+    Website built with <a href="https://github.com/tlienart/Franklin.jl">Franklin.jl</a> and the <a href="https://julialang.org">Julia programming language</a>.
+    Last update: 2026-02-21.
+  </div>
+</div>
+</div><!-- CONTENT ENDS HERE -->
+    <script src="/libs/katex/katex.min.js"></script>
+<script src="/libs/katex/auto-render.min.js"></script>
+<script>
+  const options = {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      // This next line is disabled because it is too much hassle to escape dollars correctly.
+      // Pluto.jl doesn't use it since it converts to <span> tags.
+      // Franklin.jl also doesn't use it since it converts to `\(` and `\)`.
+      // {left: "$", right: "$", display: false},
+      {left: "\\begin{equation}", right: "\\end{equation}", display: true},
+      {left: "\\begin{align}", right: "\\end{align}", display: true},
+      {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+      {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+      {left: "\\(", right: "\\)", display: false},
+      {left: "\\[", right: "\\]", display: true}
+    ]
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, options);
+  });
+</script>
+
+    
+        <script type="text/javascript">
+    async function color_ansi() {
+        const terminalOutputs = document.querySelectorAll("[id=plutouiterminal]");
+        // Avoid loading AnsiUp if there is no terminal output on the page.
+        if (terminalOutputs.length == 0) {
+            return
+        };
+        try {
+            const { default: AnsiUp } = await import("/libs/ansi_up.js");
+            const ansiUp = new AnsiUp();
+            // Indexed loop is needed here, the array iterator doesn't work for some reason.
+            for (let i = 0; i < terminalOutputs.length; ++i) {
+                const terminalOutput = terminalOutputs[i];
+                const txt = terminalOutput.innerHTML;
+                terminalOutput.innerHTML = ansiUp.ansi_to_html(txt);
+            };
+        } catch(e) {
+            console.error("Failed to import/call ansiup!", e);
+        };
+    };
+    color_ansi();
+</script>
+
+    
+    
+        <!-- http://tutsplus.github.io/clipboard/ -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+	// Get the elements.
+	// - the 'pre' element.
+	// - the 'div' with the 'paste-content' id.
+
+	var pre = document.getElementsByTagName('pre');
+
+	// Add a copy button in the 'pre' element.
+	// which only has the className of 'language-' or ' hljs'(if enable highlight.js pre-render).
+
+	for (var i = 0; i < pre.length; i++) {
+		var tag_name = pre[i].children[0].className
+            	var isLanguage = tag_name.startsWith('language-') || tag_name.endsWith(' hljs');
+		if ( isLanguage ) {
+			var button           = document.createElement('button');
+					button.className = 'copy-button';
+					// button.textContent = 'Copy to clipboard';
+
+					pre[i].appendChild(button);
+		}
+	};
+
+	// Run Clipboard
+
+	var copyCode = new Clipboard('.copy-button', {
+		target: function(trigger) {
+			return trigger.previousElementSibling;
+    }
+	});
+
+	// On success:
+	// - Change the "Copy" text to "Copied".
+	// - Swap it to "Copy" in 2s.
+	// - Lead user to the "contenteditable" area with Velocity scroll.
+
+	copyCode.on('success', function(event) {
+		event.clearSelection();
+		event.trigger.textContent = '    Copied';
+		window.setTimeout(function() {
+			event.trigger.textContent = '';
+		}, 2000);
+
+	});
+
+	// On error (Safari):
+	// - Change the  "Press Ctrl+C to copy"
+	// - Swap it to "Copy" in 2s.
+
+	copyCode.on('error', function(event) {
+		event.trigger.textContent = 'Press "Ctrl + C" to copy';
+		window.setTimeout(function() {
+			event.trigger.textContent = 'Copy';
+		}, 5000);
+	});
+
+});
+</script>
+
+    
+  </body>
+</html>
